@@ -1,73 +1,15 @@
-﻿Unité : ESS
-
-Modalité;Libellé;Définition;Position;Classe;Etendue;ValeurInt;Terrain;Couleur
-01;Chêne indifférencié;Quercus pedunculata ou sessiliflora ou lanuginosa;1;1;;;1;
-02;Chêne pédonculé;Quercus pedunculata = robur;2;2;;;1;174f31
-03;Chêne rouvre;Quercus sessiliflora = petraea;3;3;;;1;678143
-04;Chêne rouge d'Amérique;Quercus rubra;4;4;;;1;
-05;Chêne pubescent;Quercus lanuginosa = pubescens;5;5;;;1;608853
-06;Chêne vert;Quercus ilex;6;6;;;1;006d2c
-07;Chêne tauzin;Quercus toza;7;7;;;1;
-08;Chêne-liège;Quercus suber ou pseudosuber;8;8;;;1;
-09;Hêtre;Fagus sylvatica;9;10;;;1;69b868
-10;Châtaignier;Castanea sativa;10;11;;;1;70b62c
-11;Charme;Carpinus betulus;11;12;;;1;8fbf23
-12;Bouleau;Betula pubescens ou verrucosa;12;13;;;1;d0dd76
-13;Grand aulne;Alnus glutinosa ou incana ou cordata;13;14;;;1;5db77a
-14;Robinier faux-acacia;Robinia pseudoacacia;14;16;;;1;925732
-15;Grand érable;Acer pseudoplatanus ou platanoides;15;17;;;1;a8d3af
-16;Micocoulier;Celtis australis;16;19;;;1;
-17;Frêne;Fraxinus excelsior ou oxyphylla ou ornus;17;20;;;1;038e51
-18;Orme;Ulmus campestris ou scabra ou laevis;18;21;;;1;
-19;Peuplier cultivé;Populus deltoides ou trichocarpa ou canadensis ou 'interamericain' ou autre peuplier selectionne;19;22;;;1;f3e600
-20;Tilleul;Tilia cordata ou platyphyllos;20;24;;;1;
-21;Petit érable;Acer campestre ou opalus ou monspessulanum;21;18;;;1;
-22;Cerisier ou merisier;Prunus avium ou cerasus ou padus ou serotina;22;25;;;1;6bc0bb
-23;Autre fruitier;Pirus malus ou communis ou prunus amygdalus ou domestica ou sorbus aria ou aucuparia ou domestica ou latifolia ou mougeoti;23;27;;;1;
-24;Tremble;Populus tremula;24;28;;;1;c5d9c7
-25;Saule;Salix sp. sauf espece rampante ou buissonnante;25;29;;;1;
-26;Platane;Platanus occidentalis ou orientalis ou acerifolia;26;30;;;1;
-27;Noyer;Juglans regia ou nigra ou hybride;27;31;;;1;
-28;Olivier;Olea europea;28;32;;;1;
-29;Autre feuillu exotique;;29;43;;;1;
-31;Noisetier;Corylus avellana;30;34;;;;
-32;Charme-houblon;Ostrya carpinifolia;31;35;;;1;
-33;Peuplier non cultivé;Populus alba ou nigra ou canescens ou autre peuplier non selectionne;32;23;;;1;
-34;Chêne chevelu;Quercus cerris;33;9;;;1;
-36;Eucalyptus;Eucalyptus sp.;34;37;;;1;
-37;Aulne vert;Alnus viridis;35;15;;;;
-38;Grand cytise (aubour);Laburnum anagyroides ou alpinum;36;38;;;1;
-39;Cornouiller mâle;Cornus mas;37;39;;;1;
-40;Arbousier;Arbutus unedo;38;40;;;1;
-41;Alisier torminal;Sorbus torminalis;39;26;;;1;
-42;Tulipier de Virginie;Liriodendron tulipifera;40;41;;;1;
-49;Autre feuillu indigène;;41;42;;;1;
-51;Pin maritime;Pinus pinaster;42;51;;;1;884996
-52;Pin sylvestre;Pinus sylvestris;43;52;;;;704696
-53;Pin laricio;Pinus salzmannii ou nigra ssp. laricio corsicana ou calabrica;44;53;;;;4f4c9a
-54;Pin noir;Pinus nigra ssp. nigricans ou clusiana;45;54;;;;6c4796
-55;Pin pignon;Pinus pinea;46;55;;;;
-56;Pin weymouth;Pinus strobus;47;56;;;;
-57;Pin d'Alep;Pinus halepensis ou brutia ou eldarica;48;57;;;;b6569c
-58;Pin à crochets;Pinus uncinata;49;58;;;1;63509d
-59;Pin cembro;Pinus cembra;50;59;;;;
-60;Pin mugo;Pinus mughus;51;60;;;1;
-61;Sapin pectiné;Abies alba = pectinata;52;62;;;1;5ac1d1
-62;Épicéa commun;Picea abies = excelsa;53;66;;;1;84cde0
-63;Mélèze d'Europe;Larix decidua;54;68;;;1;5d76b9
-64;Douglas;Pseudotsuga menziesii;55;70;;;1;598ecb
-65;Cèdre de l'Atlas;Cedrus atlantica;56;71;;;1;
-66;Cyprès;Cupressus sempervirens;57;73;;;1;
-67;If;Taxus baccata;58;74;;;1;
-68;Autre conifère exotique;;59;77;;;1;
-69;Genévrier;Juniperus thurifera, communis ou oxycedrus;60;75;;;1;
-70;Sapin méditerranéen;Abies bornmulleriana ou cephalonica ou pinsapo;61;63;;;1;
-71;Sapin de Nordmann;Abies nordmanniana;62;64;;;1;
-72;Sapin américain;Abies grandis ou procera;63;65;;;1;
-73;Épicéa de Sitka;Picea sitchensis;64;67;;;1;6ca5da
-74;Mélèze exotique;Larix leptolepis = kaempferi ou eurolepis;65;69;;;1;
-75;Autre conifère indigène;;66;76;;;1;
-76;Cèdre du Liban;Cedrus libani;67;72;;;1;
-77;Pin à encens;Pinus taeda;68;61;;;1;
-35;Tamaris;Tamarix gallica;69;-36;;;1;
-30;Mûrier;Morus alba ou nigra;70;-33;;;1;
+﻿mode,libelle,definition,Position,Classe,Etendue,ValeurInt,Terrain,Couleur
+14,Black locust,Robinia pseudoacacia,14,16,,,1,925732
+15,Big maples,Acer pseudoplatanus ou platanoides,15,17,,,1,a8d3af
+19,Cultivated poplar,Populus deltoides ou trichocarpa ou canadensis ou 'interamericain' ou autre peuplier selectionne,19,22,,,1,f3e600
+20,Linden,Tilia cordata ou platyphyllos,20,24,,,1,
+21,Small maples,Acer campestre ou opalus ou monspessulanum,21,18,,,1,
+23,Fruit trees,Pirus malus ou communis ou prunus amygdalus ou domestica ou sorbus aria ou aucuparia ou domestica ou latifolia ou mougeoti,23,27,,,1,
+24,Trembling aspen,Populus tremula,24,28,,,1,c5d9c7
+25,Willow,Salix sp. sauf espece rampante ou buissonnante,25,29,,,1,
+33,Non-cultivated poplar,Populus alba ou nigra ou canescens ou autre peuplier non selectionne,32,23,,,1,
+52,Scots pine,Pinus sylvestris,43,52,,,,704696
+53,Corsican black pine,Pinus salzmannii ou nigra ssp. laricio corsicana ou calabrica,44,53,,,,4f4c9a
+54,Black pine,Pinus nigra ssp. nigricans ou clusiana,45,54,,,,6c4796
+58,Hook pine,Pinus uncinata,49,58,,,1,63509d
+61,Silver fir,Abies alba = pectinata,52,62,,,1,5ac1d1

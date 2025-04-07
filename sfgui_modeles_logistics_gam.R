@@ -8,7 +8,7 @@ library(car)
 library(performance)
 
 library(ggeffects)
-
+library(ggtext)
 library(ggplot2)
 
 library(dplyr)
@@ -29,7 +29,7 @@ library(rstatix)
 ######################################### Distribution maps ##########################################
 ######################################################################################################
 
-data_placette <- read.csv("C://Users/WMarchand/Downloads/sfgui-20250407T055942Z-001/sfgui/data_plots_2008_2022_all_v2.csv", header = TRUE)
+data_placette <- read.csv("data_plots_2008_2022_all_v2.csv", header = TRUE)
 
 fr_contours <- ne_countries(country = 'france', scale = "medium", returnclass = 'sf')
 fr_contours_proj <- st_transform(fr_contours, 27572)
@@ -160,6 +160,8 @@ climate_space_austriacum <- ggplot(subset(data_placette_austriacum))+
 ############################################################################################
 ########################## FIGURE 1 ########################################################
 ############################################################################################
+
+## note: cohens d effect sizes were added to the figure after export, using inkscape 
 
 map_album / climate_space_album | map_abietis / climate_space_abietis | map_austriacum / 
   climate_space_austriacum
@@ -504,12 +506,12 @@ ggsave("pred_album_env.svg", width = 16, height = 6)
 ######################################### Tree-level models ##########################################
 ######################################################################################################
 
-data_arbre <- read.csv("C://Users/WMarchand/Downloads/sfgui-20250407T055942Z-001/sfgui/data_trees_2008_2022_v2.csv", header = TRUE)
+data_arbre <- read.csv("data_trees_2008_2022_v2.csv", header = TRUE)
 
 ## Abietis ##
 
-data_arbre_abietis <- subset(data_arbre, ssp_gui == "abietis")
-data_arbre_abietis_bio$mortbg2_factor <- as.factor(data_arbre_abietis$mortbg2)
+data_arbre_abietis_bio <- subset(data_arbre, ssp_gui == "abietis")
+data_arbre_abietis_bio$mortbg2_factor <- as.factor(data_arbre_abietis_bio$mortbg2)
 data_arbre_abietis_bio$npp_factor <- as.factor(data_arbre_abietis_bio$npp)
 
 test_gam_arbres_abietis <- gam(
@@ -545,7 +547,7 @@ saveRDS(pred_mortbg2_abietis, "pred_values_mortbg2_average_abietis_reduced.RDS")
 
 ## Austriacum ##
 
-data_arbre_austriacum <- subset(data_arbre, ssp_gui == "austriacum")
+data_arbre_austriacum_bio <- subset(data_arbre, ssp_gui == "austriacum")
 data_arbre_austriacum_bio$mortbg2_factor <- as.factor(data_arbre_austriacum_bio$mortbg2)
 data_arbre_austriacum_bio$npp_factor <- as.factor(data_arbre_austriacum_bio$npp)
 
@@ -581,11 +583,9 @@ saveRDS(pred_mortbg2_austriacum, "pred_values_mortbg2_average_austriacum_reduced
 
 ## Album ##
 
-data_arbre_album <- subset(data_arbre, ssp_gui == "album")
+data_arbre_album_bio <- subset(data_arbre, ssp_gui == "album")
 data_arbre_album_bio$mortbg2_factor <- as.factor(data_arbre_album_bio$mortbg2)
 data_arbre_album_bio$npp_factor <- as.factor(data_arbre_album_bio$npp)
-
-head(data_arbre_album_bio)
 
 test_gam_arbres_album <- gam(
   family = binomial,
@@ -644,7 +644,6 @@ pred_mortbg2_all$mortbg2 <- factor(pred_mortbg2_all$mortbg2,
 ########################## FIGURE 3 ########################################################
 ############################################################################################
 
-library(ggtext)
 ggplot(pred_mortbg2_all)+
   geom_errorbar(aes(x=mortbg2, ymin=conf.low, ymax=conf.high, color=ssp_gui), width = .4)+
   geom_point(aes(x=mortbg2, y=predicted, color=ssp_gui), size = 2)+
@@ -668,7 +667,7 @@ ggsave("pred_mortbg2_reduced.png", width = 10, height = 8, dpi = 300)
 ########################## tree-level models - growth ######################################
 ############################################################################################
 
-data_ir5_bio <- read.csv("C://Users/WMarchand/Downloads/sfgui-20250407T055942Z-001/sfgui/data_ir5_2008_2022_v2.csv", header = TRUE)
+data_ir5_bio <- read.csv("data_ir5_2008_2022_v2.csv", header = TRUE)
 data_ir5_bio$sfgui_factor <- as.factor(data_ir5_bio$sfgui)
 data_ir5_bio$npp_factor <- as.factor(data_ir5_bio$npp)
 
@@ -677,7 +676,7 @@ data_ir5_bio$ess_factor <- as.factor(data_ir5_bio$ess)
 
 ## Abietis ##
 
-test_gam_ir5 <- gam(
+test_gam_ir5_abietis <- gam(
   data = subset(data_ir5_bio, ssp_gui == "abietis"),
   formula = log(croissance_5ans) ~ 
     s(c13, bs = "cr",  k = 4)
@@ -717,12 +716,12 @@ spatialRF::vif(subset(data_ir5_bio, ssp_gui == "abietis" )[, c("c13",
                                                                "wc2.1_30s_bio_18"
 )])
 
-plot(resid(test_gam_ir5, type = "response")~fitted(test_gam_ir5))
+plot(resid(test_gam_ir5_abietis, type = "response")~fitted(test_gam_ir5_abietis))
 
-concurvity(test_gam_ir5)
+concurvity(test_gam_ir5_abietis)
 r2(test_gam_ir5)
 
-summ_ir5_abiet <- summary(test_gam_ir5)
+summ_ir5_abiet <- summary(test_gam_ir5_abietis)
 p.table <- as.data.frame(summ_ir5_abiet$p.table)
 p.table$var <- rownames(p.table)
 write.csv(p.table, "coefs_abiet_ir5_c13.csv", row.names = FALSE)
@@ -731,15 +730,15 @@ s.table <- as.data.frame(summ_ir5_abiet$s.table)
 s.table$var <- rownames(s.table)
 write.csv(s.table, "coefs_smooth_abiet_ir5_c13.csv", row.names = FALSE)
 
-saveRDS(test_gam_ir5, "gam_modele_ir5_abietis_divrg1_c13.RDS")
-test_gam_ir5 <- readRDS("gam_modele_ir5_abietis_divrg1_c13.RDS")
+saveRDS(test_gam_ir5_abietis, "gam_modele_ir5_abietis_divrg1_c13.RDS")
+test_gam_ir5_abietis <- readRDS("gam_modele_ir5_abietis_divrg1_c13.RDS")
 
-ave_predictd_ir5_abiet <- ggaverage(test_gam_ir5, c('sfgui_factor [all]'), weights = "poids_models")
-saveRDS(ave_predictd_ir5_abiet, "pred_values_average_c13.RDS")
+ave_pred_ir5_abietis <- ggaverage(test_gam_ir5_abietis, c('sfgui_factor [all]'), weights = "poids_models")
+saveRDS(ave_pred_ir5_abietis, "pred_values_average_c13.RDS")
 
 ## Austriacum ##
 
-test_gam_ir5 <- gam(
+test_gam_ir5_austriacum <- gam(
   data = subset(data_ir5_bio, ssp_gui == "austriacum"),
   formula = log(croissance_5ans) ~ 
     s(c13, bs = "cr",  k = 4)
@@ -763,10 +762,10 @@ test_gam_ir5 <- gam(
   , weights = poids_models
 )
 
-saveRDS(test_gam_ir5, "gam_modele_ir5_austriacum_divrg1_c13.RDS")
-test_gam_ir5_austr <- readRDS("gam_modele_ir5_austriacum_divrg1_c13.RDS")
+saveRDS(test_gam_ir5_austriacum, "gam_modele_ir5_austriacum_divrg1_c13.RDS")
+test_gam_ir5_austriacum <- readRDS("gam_modele_ir5_austriacum_divrg1_c13.RDS")
 
-summ_ir5_austr <- summary(test_gam_ir5_austr)
+summ_ir5_austr <- summary(test_gam_ir5_austriacum)
 p.table <- as.data.frame(summ_ir5_austr$p.table)
 p.table$var <- rownames(p.table)
 write.csv(p.table, "coefs_austr_ir5_c13.csv", row.names = FALSE)
@@ -787,17 +786,17 @@ spatialRF::vif(subset(data_ir5_bio, ssp_gui == "austriacum")[, c("c13",
                                                               "wc2.1_30s_bio_18"
 )])
 
-plot(resid(test_gam_ir5, type = "response")~fitted(test_gam_ir5))
+plot(resid(test_gam_ir5_austriacum, type = "response")~fitted(test_gam_ir5_austriacum))
 
-concurvity(test_gam_ir5)
-r2(test_gam_ir5_austr)
+concurvity(test_gam_ir5_austriacum)
+r2(test_gam_ir5_austriacum)
 
-ave_pred_ir5_austriacum <- ggaverage(test_gam_ir5, c('ess_factor [all]', 'sfgui_factor [all]'), weights = "poids_models")
+ave_pred_ir5_austriacum <- ggaverage(test_gam_ir5_austriacum, c('ess_factor [all]', 'sfgui_factor [all]'), weights = "poids_models")
 saveRDS(ave_pred_ir5_austriacum, "pred_values_ir5_average_austriacum_c13.RDS")
 
 ## Album ##
 
-test_gam_ir5 <- gam(
+test_gam_ir5_album <- gam(
   data = subset(data_ir5_bio, ssp_gui == "album"  & ess != 41),
   formula = log(croissance_5ans) ~ 
     s(c13, bs = "cr",  k = 4)
@@ -823,7 +822,7 @@ test_gam_ir5 <- gam(
   , weights = poids_models
 )
 
-saveRDS(test_gam_ir5, "gam_modele_ir5_album_divrg1_noess41_c13.RDS")
+saveRDS(test_gam_ir5_album, "gam_modele_ir5_album_divrg1_noess41_c13.RDS")
 test_gam_ir5_album <- readRDS("gam_modele_ir5_album_divrg1_noess41_c13.RDS")
 
 summ_ir5_album <- summary(test_gam_ir5_album)
@@ -835,9 +834,9 @@ s.table <- as.data.frame(summ_ir5_album$s.table)
 s.table$var <- rownames(s.table)
 write.csv(s.table, "coefs_smooth_album_ir5_noess41_c13.csv", row.names = FALSE)
 
-plot(resid(test_gam_ir5, type = "response")~fitted(test_gam_ir5))
+plot(resid(test_gam_ir5_album, type = "response")~fitted(test_gam_ir5_album))
 
-concurvity(test_gam_ir5)
+concurvity(test_gam_ir5_album)
 r2(test_gam_ir5_album)
 
 spatialRF::vif(subset(data_ir5_bio, ssp_gui == "album"   & c13 > .708)[, c("c13",
@@ -853,7 +852,7 @@ spatialRF::vif(subset(data_ir5_bio, ssp_gui == "album"   & c13 > .708)[, c("c13"
                                                             "wc2.1_30s_bio_18"
 )])
 
-ave_pred_ir5_album <- ggaverage(test_gam_ir5, c('ess_factor [all]', 'sfgui_factor [all]'), weights = "poids_models")
+ave_pred_ir5_album <- ggaverage(test_gam_ir5_album, c('ess_factor [all]', 'sfgui_factor [all]'), weights = "poids_models")
 saveRDS(ave_pred_ir5_album, "pred_values_ir5_average_album_noess41_c13.RDS")
 
 ave_pred_ir5_austriacum <- readRDS("pred_values_ir5_average_austriacum_c13.RDS")
@@ -872,7 +871,7 @@ ave_pred_ir5_all <- rbind(ave_pred_ir5_austriacum,
 unique(ave_pred_ir5_all$x)
 ave_pred_ir5_all$x <- as.character(ave_pred_ir5_all$x)
 
-mod_ess <- read.csv("C://Users/willi/Downloads/Modalites_ESS.csv", sep=",", encoding = "Latin1")
+mod_ess <- read.csv("Modalites_ESS.csv")
 mod_ess$mode <- as.character(mod_ess$mode)
 
 ave_pred_ir5_all_lib <- inner_join(ave_pred_ir5_all, mod_ess, by = c("x" = "mode"))
@@ -887,8 +886,6 @@ ave_pred_ir5_all_lib$labs <- factor(ave_pred_ir5_all_lib$labs,
                                                   "more than 5 clusters"
                                                   )
                                        )
-ave_pred_ir5_all_lib$libelle[ave_pred_ir5_all_lib$x == "21"] <- "Small maples"
-ave_pred_ir5_all_lib$libelle[ave_pred_ir5_all_lib$x == "15"] <- "Big maples"
 
 ############################################################################################
 ########################## Figure 4 ########################################################
