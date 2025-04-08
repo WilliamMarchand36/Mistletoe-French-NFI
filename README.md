@@ -1,8 +1,8 @@
 This repository provides the R script and data that was used in the study "Viscum album in French forests: distribution, environmental drivers and impacts on tree health and growth" by William Marchand, Jean-Baptiste Daubrée and Claire Depardieu.
 It allows the users to re-draw the main figures.
 
-Mistletoe presence was monitored between 2008 and 2022 on temporary sample plots of the French NFI, along with dendrometric, environmental and ecological data.
-We analyzed this data using binomial generalized additive mixed models.
+Mistletoe infestation was monitored between 2008 and 2022 on temporary sample plots of the French NFI, along with dendrometric, environmental and ecological data.
+We analyzed this data (together with the relationships with MeteoFrance and WorldClim climate variables) using binomial generalized additive mixed models.
 
 Main findings are:
 - The spatial distribution of mistletoe depends on environmental and tree-level factors; 
