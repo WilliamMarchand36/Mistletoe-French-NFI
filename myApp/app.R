@@ -7,14 +7,25 @@
 #    https://shiny.posit.co/
 #
 
+# shinylive::export(appdir = "myApp", destdir = "docs")
+# httpuv::runStaticServer("docs/", port=8008)
+
 library(shiny)
 library(sf)
 library(ggplot2)
+library(plotly)
+library(dplyr)
+library(scales)
+library(forcats)
+
 data_placette <- read.csv("data_plots_2008_2022_all_v2.csv", header = TRUE)
+modalites_tauxgui <- read.csv("Modalites_TAUXGUIT.csv", header = TRUE, sep = ";")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
+  tags$link(rel = "stylesheet", type = "text/css", href = "mistle_style.css"),
+  
     # Application title
     titlePanel("Mistletoe in french forests"),
 
@@ -28,7 +39,7 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-           plotOutput("distPlot")
+           plotlyOutput("distPlot")
         )
     )
 )
@@ -53,12 +64,20 @@ server <- function(input, output) {
     return(subdata_sf)
   })
   
-    output$distPlot <- renderPlot({
+    output$distPlot <- renderPlotly({
         data <- select_data()
+        data <- left_join(data, modalites_tauxgui, by = c("tx_gui" = "mode"))
         data$tx_gui <- as.numeric(data$tx_gui)
+        data$libelle <- factor(data$libelle,
+                               levels = unique(data$libelle[order(data$tx_gui)])
+                               )
         # draw the histogram with the specified number of bins
-        ggplot(data, aes(x=tx_gui))+
-          geom_bar()
+        p <- ggplot(data, aes(y=fct_rev(libelle)))+
+          geom_bar()+
+          labs(x="Plot number", y="% infested trees")+
+          theme_bw()
+        
+        ggplotly(p)
     })
 }
 
