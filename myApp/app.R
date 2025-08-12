@@ -17,6 +17,8 @@ library(plotly)
 library(dplyr)
 library(scales)
 library(forcats)
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 data_placette <- read.csv("data_plots_2008_2022_all_v2.csv", header = TRUE)
 modalites_tauxgui <- read.csv("Modalites_TAUXGUIT.csv", header = TRUE, sep = ";")
@@ -39,7 +41,8 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-           plotlyOutput("distPlot")
+           plotlyOutput("distPlot"),
+           plotlyOutput("distMap")
         )
     )
 )
@@ -49,15 +52,15 @@ server <- function(input, output) {
 
   select_data <- reactive({
     if(input$ssp == "album"){
-      subdata <- data_placette[!(data_placette$u_txguialbum %in% c("X", "0")), c("npp", "xl", "yl", "u_txguialbum")]
+      subdata <- data_placette[!(data_placette$u_txguialbum %in% c("X")), c("npp", "xl", "yl", "u_txguialbum")]
       names(subdata)[4] <- "tx_gui"
       subdata_sf <- st_as_sf(subdata, coords = c("xl", "yl"), crs = 27572)
     }else if(input$ssp == "abietis"){
-      subdata <- data_placette[!(data_placette$u_txguiabiet %in% c("X", "0")), c("npp", "xl", "yl", "u_txguiabiet")]
+      subdata <- data_placette[!(data_placette$u_txguiabiet %in% c("X")), c("npp", "xl", "yl", "u_txguiabiet")]
       names(subdata)[4] <- "tx_gui"
       subdata_sf <- st_as_sf(subdata, coords = c("xl", "yl"), crs = 27572)
     }else{
-      subdata <- data_placette[!(data_placette$u_txguiaustr %in% c("X", "0")), c("npp", "xl", "yl", "u_txguiaustr")]
+      subdata <- data_placette[!(data_placette$u_txguiaustr %in% c("X")), c("npp", "xl", "yl", "u_txguiaustr")]
       names(subdata)[4] <- "tx_gui"
       subdata_sf <- st_as_sf(subdata, coords = c("xl", "yl"), crs = 27572)
     }
@@ -65,7 +68,7 @@ server <- function(input, output) {
   })
   
     output$distPlot <- renderPlotly({
-        data <- select_data()
+        data <- subset(select_data(), tx_gui != "0")
         data <- left_join(data, modalites_tauxgui, by = c("tx_gui" = "mode"))
         data$tx_gui <- as.numeric(data$tx_gui)
         data$libelle <- factor(data$libelle,
@@ -73,11 +76,36 @@ server <- function(input, output) {
                                )
         # draw the histogram with the specified number of bins
         p <- ggplot(data, aes(y=fct_rev(libelle)))+
-          geom_bar()+
+          geom_bar(aes(fill=..count..), color = "black")+
+          scale_fill_gradient(name = "%", low="white", high="red3")+
           labs(x="Plot number", y="% infested trees")+
           theme_bw()
         
         ggplotly(p)
+    })
+    
+    output$distMap <- renderPlotly({
+      data <- select_data()
+      # data <- left_join(data, modalites_tauxgui, by = c("tx_gui" = "mode"))
+      # data$tx_gui <- as.numeric(data$tx_gui)
+      # data$libelle <- factor(data$libelle,
+      #                        levels = unique(data$libelle[order(data$tx_gui)])
+      # )
+      data$is_gui <- ifelse(data$tx_gui == 0, "absent", "present")
+      
+      fr_contours <- ne_countries(country = 'france', scale = "medium", returnclass = 'sf')
+      fr_contours_proj <- st_transform(fr_contours, 27572)
+      
+      # draw the histogram with the specified number of bins
+      p <- ggplot(data)+
+        geom_sf(aes(color = is_gui))+
+        scale_color_manual(name = "mistletoe", values = c("absent" = "grey75", "present" = "orangered"))+
+        geom_sf(data=fr_contours_proj, fill = "transparent")+
+        coord_sf(xlim = c(75100, 1194200), ylim = c(1621600, 2671600))+
+        theme_minimal()+
+        theme(axis.text = element_blank())
+      
+      ggplotly(p)
     })
 }
 
