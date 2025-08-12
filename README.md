@@ -7,6 +7,7 @@ We analyzed this data (together with the relationships with MeteoFrance and Worl
 Main findings are:
 - The spatial distribution of mistletoe depends on environmental and tree-level factors; 
 - Isothermality, temperature and soil factors are key drivers of mistletoe distribution;
+- In the case of pine and fir mistletoe, species-diverse stands display lower occurrences of the parasite;
 - Trees with a high level of canopy dieback are more susceptible to mistletoe infestation;
 - Mistletoe induces growth reductions of 22-32 % in Scots pine and Silver fir.
 
