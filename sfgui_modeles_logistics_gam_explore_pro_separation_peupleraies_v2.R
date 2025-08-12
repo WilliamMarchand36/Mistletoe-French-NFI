@@ -1,0 +1,1979 @@
+## Libraries
+
+library(doBy)
+library(mgcv)
+
+library(arm)
+library(car)
+library(performance)
+
+library(ggeffects)
+library(ggtext)
+library(ggplot2)
+library(ggpubr)
+library(cowplot)
+
+library(dplyr)
+library(tidyr)
+
+library(spatialRF)
+
+library(sf)
+library(rnaturalearth)
+
+library(ggside)
+
+library(patchwork)
+
+library(rstatix)
+
+######################################################################################################
+######################################### Distribution maps ##########################################
+######################################################################################################
+
+data_placette <- read.csv("data_plots_2008_2022_all_v3.csv", header = TRUE)
+
+ggplot(data_placette)+
+  geom_boxplot(aes(x=plantation, y=age_1))+
+  scale_x_discrete(labels = c("non plante" = "No sign of plantation",
+                              "plante" = "Sign of plantation"
+                              ))+
+  labs(x="", y="Stand age [years]")+
+  theme_bw()
+
+ggsave("boxplot_age_plantation.png", height = 6, width = 6, dpi = 300)
+
+fr_contours <- ne_countries(country = 'france', scale = "medium", returnclass = 'sf')
+fr_contours_proj <- st_transform(fr_contours, 27572)
+
+data_placette_shp <- st_as_sf(data_placette, coords = c("xl", "yl"), crs = 27572)
+
+data_placette_shp$presence_gui_factor <- ifelse(data_placette_shp$presence_gui == "absent", "absent", "present")
+data_placette_shp$presence_gui_factor <- factor(data_placette_shp$presence_gui_factor,
+                                                levels = c("absent", "present")
+                                                )
+
+data_placette_shp <- data_placette_shp[order(data_placette_shp$presence_gui_factor),]
+
+data_placette$presence_gui_factor <- ifelse(data_placette$presence_gui == "absent", "absent", "present")
+data_placette$presence_gui_factor <- factor(data_placette$presence_gui_factor,
+                                                levels = c("absent", "present")
+)
+
+data_placette <- data_placette[order(data_placette$presence_gui_factor),]
+
+## Album non peupleraie ##
+
+data_placette_album <- subset(data_placette, u_txguialbum != 'X' & domaine_def != "peupleraie")
+data_placette_album$presence_album_bin <- ifelse(data_placette_album$u_txguialbum == "0", 0, 1)
+data_placette_album$presence_album_factor <- factor(data_placette_album$presence_album_bin,
+                                                        levels = c(0, 1)
+)
+data_placette_album <- data_placette_album[order(data_placette_album$presence_album_factor),]
+cohens_d(data_placette_album, tmoy~presence_album_factor)
+cohens_d(data_placette_album, rmoy~presence_album_factor)
+
+data_placette_album_shp <- st_as_sf(data_placette_album, coords = c("xl", "yl"), crs = 27572)
+data_placette_album_shp <- data_placette_album_shp[order(data_placette_album_shp$presence_album_factor),]
+
+map_album <- ggplot()+
+  geom_sf(data = subset(data_placette_album_shp), aes(color=presence_album_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#26ad00"))+
+  geom_sf(data=fr_contours_proj, fill = "transparent")+
+  coord_sf(xlim = c(75100, 1194200), ylim = c(1621600, 2671600))+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+climate_space_album <- ggplot(subset(data_placette_album))+
+  geom_point(aes(x=tmoy, y=rmoy, color=presence_album_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#26ad00"))+
+  geom_xsidedensity(aes(x=tmoy, color=presence_album_factor)) +
+  geom_ysidedensity(aes(y=rmoy, color = presence_album_factor)) +
+  theme_minimal()+
+  lims(x=c(min(data_placette$tmoy), max(data_placette$tmoy)), y=c(min(data_placette$rmoy), max(data_placette$rmoy)))+
+  theme(legend.position = "none",
+        ggside.panel.scale.x = .4,
+        ggside.panel.scale.y = .4
+        )+
+  labs(x="temperature normals [°C]", y="precipitation normals [mm]")
+
+## Album peupleraie ##
+
+data_placette_album_peupleraie <- subset(data_placette, u_txguialbum != 'X' & domaine_def == "peupleraie")
+data_placette_album_peupleraie$presence_album_peupleraie_bin <- ifelse(data_placette_album_peupleraie$u_txguialbum == "0", 0, 1)
+data_placette_album_peupleraie$presence_album_peupleraie_factor <- factor(data_placette_album_peupleraie$presence_album_peupleraie_bin,
+                                                    levels = c(0, 1)
+)
+data_placette_album_peupleraie <- data_placette_album_peupleraie[order(data_placette_album_peupleraie$presence_album_peupleraie_factor),]
+cohens_d(data_placette_album_peupleraie, tmoy~presence_album_peupleraie_factor)
+cohens_d(data_placette_album_peupleraie, rmoy~presence_album_peupleraie_factor)
+
+data_placette_album_peupleraie_shp <- st_as_sf(data_placette_album_peupleraie, coords = c("xl", "yl"), crs = 27572)
+data_placette_album_peupleraie_shp <- data_placette_album_peupleraie_shp[order(data_placette_album_peupleraie_shp$presence_album_peupleraie_factor),]
+
+map_album_peupleraie <- ggplot()+
+  geom_sf(data = subset(data_placette_album_peupleraie_shp), aes(color=presence_album_peupleraie_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#26ad00"))+
+  geom_sf(data=fr_contours_proj, fill = "transparent")+
+  coord_sf(xlim = c(75100, 1194200), ylim = c(1621600, 2671600))+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+climate_space_album_peupleraie <- ggplot(subset(data_placette_album_peupleraie))+
+  geom_point(aes(x=tmoy, y=rmoy, color=presence_album_peupleraie_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#26ad00"))+
+  geom_xsidedensity(aes(x=tmoy, color=presence_album_peupleraie_factor)) +
+  geom_ysidedensity(aes(y=rmoy, color = presence_album_peupleraie_factor)) +
+  theme_minimal()+
+  lims(x=c(min(data_placette$tmoy), max(data_placette$tmoy)), y=c(min(data_placette$rmoy), max(data_placette$rmoy)))+
+  theme(legend.position = "none",
+        ggside.panel.scale.x = .4,
+        ggside.panel.scale.y = .4
+  )+
+  labs(x="temperature normals [°C]", y="precipitation normals [mm]")
+
+## Abietis ##
+
+data_placette_abietis <- subset(data_placette, u_txguiabiet != 'X')
+data_placette_abietis$presence_abietis_bin <- ifelse(data_placette_abietis$u_txguiabiet == "0", 0, 1)
+data_placette_abietis$presence_abietis_factor <- factor(data_placette_abietis$presence_abietis_bin,
+                                                        levels = c(0, 1)
+)
+data_placette_abietis <- data_placette_abietis[order(data_placette_abietis$presence_abietis_factor),]
+
+cohens_d(data_placette_abietis, tmoy~presence_abietis_factor)
+cohens_d(data_placette_abietis, rmoy~presence_abietis_factor)
+
+data_placette_abietis_shp <- st_as_sf(data_placette_abietis, coords = c("xl", "yl"), crs = 27572)
+data_placette_abietis_shp <- data_placette_abietis_shp[order(data_placette_abietis_shp$presence_abietis_factor),]
+
+map_abietis <- ggplot()+
+  geom_sf(data = subset(data_placette_abietis_shp), aes(color=presence_abietis_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#029dd1"))+
+  geom_sf(data=fr_contours_proj, fill = "transparent")+
+  coord_sf(xlim = c(75100, 1194200), ylim = c(1621600, 2671600))+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+climate_space_abietis <- ggplot(subset(data_placette_abietis))+
+  geom_point(aes(x=tmoy, y=rmoy, color=presence_abietis_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#029dd1"))+
+  geom_xsidedensity(aes(x=tmoy, color=presence_abietis_factor)) +
+  geom_ysidedensity(aes(y=rmoy, color = presence_abietis_factor)) +
+  theme_minimal()+
+  theme(legend.position = "none",
+        ggside.panel.scale.x = .4,
+        ggside.panel.scale.y = .4
+        )+
+  lims(x=c(min(data_placette$tmoy), max(data_placette$tmoy)), y=c(min(data_placette$rmoy), max(data_placette$rmoy)))+
+  labs(x="temperature normals [°C]", y="precipitation normals [mm]")
+
+## Austriacum ##
+
+data_placette_austriacum <- subset(data_placette, u_txguiaustr != 'X')
+data_placette_austriacum$presence_austriacum_bin <- ifelse(data_placette_austriacum$u_txguiaustr == "0", 0, 1)
+data_placette_austriacum$presence_austriacum_factor <- factor(data_placette_austriacum$presence_austriacum_bin,
+                                                              levels = c(0, 1)
+)
+cohens_d(data_placette_austriacum, tmoy~presence_austriacum_factor)
+cohens_d(data_placette_austriacum, rmoy~presence_austriacum_factor)
+
+data_placette_austriacum <- data_placette_austriacum[order(data_placette_austriacum$presence_austriacum_factor),]
+data_placette_austriacum_shp <- st_as_sf(data_placette_austriacum, coords = c("xl", "yl"), crs = 27572)
+data_placette_austriacum_shp <- data_placette_austriacum_shp[order(data_placette_austriacum_shp$presence_austriacum_factor),]
+
+map_austriacum <- ggplot()+
+  geom_sf(data = subset(data_placette_austriacum_shp), aes(color=presence_austriacum_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#4d00bf"))+
+  geom_sf(data=fr_contours_proj, fill = "transparent")+
+  coord_sf(xlim = c(75100, 1194200), ylim = c(1621600, 2671600))+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+climate_space_austriacum <- ggplot(subset(data_placette_austriacum))+
+  geom_point(aes(x=tmoy, y=rmoy, color=presence_austriacum_factor))+
+  scale_color_manual(name = "mistletoe presence", values = c("gray65", "#4d00bf"))+
+  geom_xsidedensity(aes(x=tmoy, color=presence_austriacum_factor)) +
+  geom_ysidedensity(aes(y=rmoy, color = presence_austriacum_factor)) +
+  theme_minimal()+
+  theme(legend.position = "none",
+        ggside.panel.scale.x = .4,
+        ggside.panel.scale.y = .4
+        )+
+  lims(x=c(min(data_placette$tmoy), max(data_placette$tmoy)), y=c(min(data_placette$rmoy), max(data_placette$rmoy)))+
+  labs(x="temperature normals [°C]", y="precipitation normals [mm]")
+
+############################################################################################
+########################## FIGURE 1 ########################################################
+############################################################################################
+
+## note: cohens d effect sizes were added to the figure after export, using inkscape 
+
+(map_album / climate_space_album | 
+  map_album_peupleraie / climate_space_album_peupleraie) /
+  (map_abietis / climate_space_abietis |
+  map_austriacum / climate_space_austriacum)
+
+ggsave("map_climatespaces_peupleraie_v2.png", height = 18, width = 18, dpi = 300)
+ggsave("map_climatespaces_peupleraie_v2.svg", height = 18, width = 18)
+
+
+######################################################################################################
+######################################### Plot-level models ##########################################
+######################################################################################################
+
+## NOTE : PRO_NM :dépend des essences présentes en public vs privé --> plus délicat. voir peut-être avec GEST ? ##
+
+
+## Abietis ##
+
+data_placette_abietis$div_rg1_factor <- as.factor(data_placette_abietis$div_rg1)
+data_placette_abietis$u_sfo_calc_factor <- as.factor(data_placette_abietis$u_sfo_calc)
+data_placette_abietis$plantation_factor <- as.factor(data_placette_abietis$plantation)
+data_placette_abietis$gest_factor <- as.factor(data_placette_abietis$gestion)
+data_placette_abietis$gest_factor_2 <- as.factor(data_placette_abietis$gest)
+data_placette_abietis$propriete_factor <- as.factor(data_placette_abietis$propriete)
+data_placette_abietis$gtot_ha <- as.numeric(data_placette_abietis$gtot_ha)
+
+# filter out lines with NAs for variables specified in the model, as it is important for AIC-based variable selection
+data_placette_abietis <- subset(data_placette_abietis,
+                                  !is.na(dens_tiges)
+                                & !is.na(gtot_ha)
+                                & !is.na(age_1)
+                                & !is.na(plantation_factor)
+                                & !is.na(propriete_factor)
+                                & !is.na(div_rg1_factor)
+                                & !(is.na(zp))
+                                & !is.na(tnmoy)
+                                & !is.na(txmoy)
+                                & !is.na(rmoy)
+                                & !is.na(reserutile)
+                                & !is.na(troph_r)
+                                & !is.na(hydr_r)
+                                & !is.na(wc2.1_30s_bio_3)
+                                & !is.na(wc2.1_30s_bio_6)
+                                & !is.na(wc2.1_30s_bio_7)
+                                & !is.na(wc2.1_30s_bio_18)
+                                )
+
+test_gam_placettes_abietis <- gam(
+  family = binomial(),
+  data = subset(data_placette_abietis, !is.na(age_1)
+  ),
+  formula = presence_abietis_bin ~ 
+    + s(dens_tiges, bs = "cr", k = 3)
+    + s(gtot_ha, bs = "cr", k = 3)
+    + s(age_1, bs = "cr", k = 3)
+    + plantation_factor
+    + propriete_factor
+    + div_rg1_factor
+    + s(zp, bs = "cr", k = 3)
+    # + s(tnmoy, bs = "cr", k = 3)
+    # + s(txmoy, bs = "cr", k = 3)
+    # + s(rmoy, bs = "cr", k = 3)
+    + s(reserutile, bs = "cr", k = 3)
+    + s(troph_r, bs = "cr", k = 3)
+    # + s(hydr_r, bs = "cr", k = 3)
+    # + s(wc2.1_30s_bio_6, bs = "cr", k = 3)
+    + s(wc2.1_30s_bio_7, bs = "cr", k = 3)
+    + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+    + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+    , weights = poids
+  , method = "REML"
+)
+
+AIC(test_gam_placettes_abietis) #3046
+anova(test_gam_placettes_abietis)
+
+plot(ggpredict(test_gam_placettes_abietis, c("plantation_factor")))
+
+summ_npp_abiet <- summary(test_gam_placettes_abietis)
+p.table <- as.data.frame(summ_npp_abiet$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_abiet_npp_new2.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_npp_abiet$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_abiet_npp_new2.csv", row.names = FALSE)
+  
+binnedplot(fitted(test_gam_placettes_abietis), resid(test_gam_placettes_abietis, type = "response"))
+
+concurvity(test_gam_placettes_abietis)
+r2(test_gam_placettes_abietis)
+
+spatialRF::vif(data_placette_abietis[, c("dens_tiges",
+                                         "gtot_ha",
+                                         "age_1",
+                                         "zp",
+                                         "div_rg1_factor",
+                                         "tnmoy",
+                                         # "txmoy",
+                                         "rmoy",
+                                         "reserutile",
+                                         "troph_r",
+                                         "hydr_r",
+                                         # "wc2.1_30s_bio_6",
+                                         "wc2.1_30s_bio_7",
+                                         "wc2.1_30s_bio_3",
+                                         "wc2.1_30s_bio_18"
+)])
+
+list_vars <- names(test_gam_placettes_abietis$model)[-c(1:4, ncol(test_gam_placettes_abietis$model))]
+
+data_predict <- data.frame()
+
+for(i in list_vars){
+# i <- "gtot_ha"
+predict_data_i <- ggpredict(test_gam_placettes_abietis, c(paste0(i, ' [all]')))
+predict_data_i$variable <- rep(i)
+
+data_predict <- rbind(data_predict, predict_data_i)
+
+}
+saveRDS(data_predict, "predict_env_abietis_new2.RDS")
+data_predict <- readRDS("predict_env_abietis_new2.RDS")
+data_predict$variable_factor <- factor(data_predict$variable,
+                                       levels = c(
+                                         
+                                         "hydr_r",
+                                         "troph_r",
+                                         "reserutile",
+                                         "dens_tiges",
+                                         "gtot_ha",
+                                         "age_1",
+                                         "zp",
+                                         "rmoy",
+                                         "tnmoy",
+                                         "txmoy",
+                                         "wc2.1_30s_bio_3",
+                                         "wc2.1_30s_bio_7",
+                                         "wc2.1_30s_bio_18"
+                                       )
+)
+
+############################################################################################
+########################## FIGURE 2 - middle panels ########################################
+############################################################################################
+
+ggplot(data_predict)+
+  geom_ribbon(aes(x=x, ymin=conf.low, ymax=conf.high), fill="#029dd1", alpha = .4)+
+  geom_line(aes(x=x, y=predicted), color="#029dd1")+
+  theme_bw()+
+  facet_wrap(.~variable_factor, scales = "free", nrow = 2, labeller = as_labeller(c("hydr_r" = "hydric index",
+                                                                             "reserutile" = "soil water reserve",
+                                                                             "rmoy" = "precipitation normals",
+                                                                             "dens_tiges" = "stem density",
+                                                                             "tnmoy" = "min. temp. normals",
+                                                                             "txmoy" = "max. temp. normals",
+                                                                             "gtot_ha" = "stand basal area",
+                                                                             "age_1" = "stand age",
+                                                                             "zp" = "elevation",
+                                                                             "troph_r" = "trophic index",
+                                                                             "wc2.1_30s_bio_18" = "prec. warmest quarter",
+                                                                             "wc2.1_30s_bio_3" = "isothermality",
+                                                                             "wc2.1_30s_bio_7" = "temp. annual range"
+  ))
+  )+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )
+ggsave("pred_abietis_env_new2.png", width = 16, height = 6, dpi = 300)
+ggsave("pred_abietis_env_new2.svg", width = 16, height = 6)
+
+
+### effect species diversity and plantation ####
+
+predict_abietis_plantation <- ggpredict(test_gam_placettes_abietis, c('plantation_factor'))
+plot(predict_abietis_plantation)
+predict_abietis_plantation$x <- as.character(predict_abietis_plantation$x)
+predict_abietis_plantation$x[predict_abietis_plantation$x == "non plante"] <- "Absence (not planted)"
+predict_abietis_plantation$x[predict_abietis_plantation$x == "plante"] <- "Presence (planted)"
+
+predict_abietis_plantation$x <- factor(predict_abietis_plantation$x,
+                                       levels = c("Absence (not planted)", "Presence (planted)")
+                                       )
+ggplot(predict_abietis_plantation)+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high), color = "#029dd1", width = .3)+
+  geom_point(aes(x=x, y=predicted), color = "#029dd1", size = 4)+
+  theme_bw()+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )
+
+predict_abietis_div <- ggpredict(test_gam_placettes_abietis, c('div_rg1_factor'))
+
+predict_abietis_div$x <- as.character(predict_abietis_div$x)
+predict_abietis_div$x[predict_abietis_div$x == "1"] <- "1 predominant species"
+predict_abietis_div$x[predict_abietis_div$x == "2"] <- "2 predominant species"
+predict_abietis_div$x[predict_abietis_div$x == "3"] <- "3 predominant species"
+predict_abietis_div$x[predict_abietis_div$x == "4"] <- "4+ predominant species"
+
+predict_abietis_div$x <- factor(predict_abietis_div$x,
+                                       levels = c("1 predominant species", "2 predominant species", "3 predominant species", "4+ predominant species")
+)
+
+ggplot(predict_abietis_div)+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high), color = "#029dd1", width = .3)+
+  geom_point(aes(x=x, y=predicted), color = "#029dd1", size = 4)+
+  theme_bw()+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )+
+  coord_flip()
+
+predict_abietis_pro <- ggpredict(test_gam_placettes_abietis, c('propriete_factor'))
+
+predict_abietis_pro$x <- as.character(predict_abietis_pro$x)
+predict_abietis_pro$x[predict_abietis_pro$x == "Autre forêt publique"] <- "Other public forest"
+predict_abietis_pro$x[predict_abietis_pro$x == "Forêt domaniale"] <- "State-owned forest"
+predict_abietis_pro$x[predict_abietis_pro$x == "Forêt privée"] <- "Private forest"
+
+predict_abietis_pro$x <- factor(predict_abietis_pro$x,
+                                levels = c("Other public forest", "State-owned forest", "Private forest")
+)
+## Austriacum ##
+
+data_placette_austriacum$div_rg1_factor <- as.factor(data_placette_austriacum$div_rg1)
+data_placette_austriacum$u_sfo_calc_factor <- as.factor(as.factor(data_placette_austriacum$u_sfo_calc))
+data_placette_austriacum$plantation_factor <- as.factor(data_placette_austriacum$plantation)
+data_placette_austriacum$gest_factor <- as.factor(data_placette_austriacum$gestion)
+data_placette_austriacum$propriete_factor <- as.factor(data_placette_austriacum$propriete)
+data_placette_austriacum$gtot_ha <- as.numeric(data_placette_austriacum$gtot_ha)
+
+# filter out lines with NAs for variables specified in the model, as it is important for AIC-based variable selection
+data_placette_austriacum <- subset(data_placette_austriacum,
+                                !is.na(dens_tiges)
+                                & !is.na(gtot_ha)
+                                & !is.na(age_1)
+                                & !is.na(plantation_factor)
+                                & !is.na(propriete_factor)
+                                & !is.na(div_rg1_factor)
+                                & !(is.na(zp))
+                                & !is.na(tnmoy)
+                                & !is.na(txmoy)
+                                & !is.na(rmoy)
+                                & !is.na(reserutile)
+                                & !is.na(troph_r)
+                                & !is.na(hydr_r)
+                                & !is.na(wc2.1_30s_bio_3)
+                                & !is.na(wc2.1_30s_bio_6)
+                                & !is.na(wc2.1_30s_bio_7)
+                                & !is.na(wc2.1_30s_bio_18)
+)
+
+test_gam_placettes_austriacum <- gam(
+  family = binomial(),
+  data = subset(data_placette_austriacum, !is.na(age_1)
+  ),
+  formula = presence_austriacum_bin ~ 
+  + s(dens_tiges, bs = "cr", k = 3)
+  # + s(gtot_ha, bs = "cr", k = 3)
+  + s(age_1, bs = "cr", k = 3)
+  + div_rg1_factor
+  + plantation_factor
+  # + propriete_factor
+  # + s(zp, bs = "cr", k = 3)
+  + s(tnmoy, bs = "cr", k = 3)
+  # + s(txmoy, bs = "cr", k = 3)
+  + s(rmoy, bs = "cr", k = 3)
+  # + s(reserutile, bs = "cr", k = 3)
+  + s(troph_r, bs = "cr", k = 3)
+  + s(hydr_r, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_6, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_7, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+    , weights = poids
+  , method = "REML"
+    )
+
+AIC(test_gam_placettes_austriacum) # 2262
+anova(test_gam_placettes_austriacum)
+
+binnedplot(fitted(test_gam_placettes_austriacum), resid(test_gam_placettes_austriacum, type = "response"))
+
+plot(ggpredict(test_gam_placettes_austriacum, c("plantation_factor")))
+
+summ_npp_austr <- summary(test_gam_placettes_austriacum)
+p.table <- as.data.frame(summ_npp_austr$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_austr_npp_new2.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_npp_austr$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_austr_npp_new2.csv", row.names = FALSE)
+
+concurvity(test_gam_placettes_austriacum)
+r2(test_gam_placettes_austriacum)
+
+spatialRF::vif(data_placette_austriacum[, c(
+                                            "dens_tiges",
+                                            "gtot_ha",
+                                            "age_1",
+                                            # "zp",
+                                            "div_rg1_factor",
+                                            "tnmoy",
+                                            # "txmoy",
+                                            "rmoy",
+                                            "reserutile",
+                                            "troph_r",
+                                            "hydr_r",
+                                            # "wc2.1_30s_bio_6",
+                                            "wc2.1_30s_bio_7",
+                                            "wc2.1_30s_bio_3",
+                                            "wc2.1_30s_bio_18"
+)])
+
+list_vars <- names(test_gam_placettes_austriacum$model)[-c(1:3, ncol(test_gam_placettes_austriacum$model))]
+
+data_predict <- data.frame()
+
+for(i in list_vars){
+  
+  predict_data_i <- ggpredict(test_gam_placettes_austriacum, c(paste0(i, ' [all]')), weights = "poids")
+  predict_data_i$variable <- rep(i)
+  
+  data_predict <- rbind(data_predict, predict_data_i)
+  
+}
+
+saveRDS(data_predict, "predict_env_austriacum_new2.RDS")
+data_predict <- readRDS("predict_env_austriacum_new2.RDS")
+data_predict$variable_factor <- factor(data_predict$variable,
+                                       levels = c(
+                                         "hydr_r",
+                                         "troph_r",
+                                         "reserutile",
+                                         "dens_tiges",
+                                         "gtot_ha",
+                                         "age_1",
+                                         "zp",
+                                         "rmoy",
+                                         "tnmoy",
+                                         "txmoy",
+                                         "wc2.1_30s_bio_3",
+                                         "wc2.1_30s_bio_7",
+                                         "wc2.1_30s_bio_18"
+                                       )
+)
+
+############################################################################################
+########################## FIGURE 2 - bottom panels ########################################
+############################################################################################
+
+ggplot(data_predict)+
+  geom_ribbon(aes(x=x, ymin=conf.low, ymax=conf.high), fill="#4d00bf", alpha = .4)+
+  geom_line(aes(x=x, y=predicted), color="#4d00bf")+
+  theme_bw()+
+  facet_wrap(.~variable_factor, scales = "free", nrow = 2, labeller = as_labeller(c("hydr_r" = "hydric index",
+                                                                                    "reserutile" = "soil water reserve",
+                                                                                    "rmoy" = "precipitation normals",
+                                                                                    "dens_tiges" = "stem density",
+                                                                                    "tnmoy" = "min. temp. normals",
+                                                                                    "txmoy" = "max. temp. normals",
+                                                                                    "gtot_ha" = "stand basal area",
+                                                                                    "age_1" = "stand age",
+                                                                                    "zp" = "elevation",
+                                                                                    "troph_r" = "trophic index",
+                                                                                    "wc2.1_30s_bio_18" = "prec. warmest quarter",
+                                                                                    "wc2.1_30s_bio_3" = "isothermality",
+                                                                                    "wc2.1_30s_bio_7" = "temp. annual range"
+  ))
+  )+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )
+
+ggsave("pred_austriacum_env_new2.png", width = 16, height = 6, dpi = 300)
+ggsave("pred_austriacum_env_new2.svg", width = 16, height = 6)
+
+
+### effect species diversity and plantation ####
+
+predict_austriacum_plantation <- ggpredict(test_gam_placettes_austriacum, c('plantation_factor'))
+predict_austriacum_plantation$x <- as.character(predict_austriacum_plantation$x)
+predict_austriacum_plantation$x[predict_austriacum_plantation$x == "non plante"] <- "Absence (not planted)"
+predict_austriacum_plantation$x[predict_austriacum_plantation$x == "plante"] <- "Presence (planted)"
+predict_austriacum_plantation$x <- factor(predict_austriacum_plantation$x,
+                                       levels = c("Absence (not planted)", "Presence (planted)")
+)
+ggplot(predict_austriacum_plantation)+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high), color = "#4d00bf", width = .3)+
+  geom_point(aes(x=x, y=predicted), color = "#4d00bf", size = 4)+
+  theme_bw()+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )
+
+predict_austriacum_div <- ggpredict(test_gam_placettes_austriacum, c('div_rg1_factor'))
+predict_austriacum_div$x <- as.character(predict_austriacum_div$x)
+predict_austriacum_div$x[predict_austriacum_div$x == "1"] <- "1 predominant species"
+predict_austriacum_div$x[predict_austriacum_div$x == "2"] <- "2 predominant species"
+predict_austriacum_div$x[predict_austriacum_div$x == "3"] <- "3 predominant species"
+predict_austriacum_div$x[predict_austriacum_div$x == "4"] <- "4+ predominant species"
+predict_austriacum_div$x <- factor(predict_austriacum_div$x,
+                                levels = c("1 predominant species", "2 predominant species", "3 predominant species", "4+ predominant species")
+)
+
+plot(predict_austriacum_div)
+
+ggplot(predict_austriacum_div)+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high), color = "#4d00bf", width = .3)+
+  geom_point(aes(x=x, y=predicted), color = "#4d00bf", size = 4)+
+  theme_bw()+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )+
+  coord_flip()
+
+## Album ##
+
+data_placette_album$div_rg1_factor <- as.factor(data_placette_album$div_rg1)
+data_placette_album$u_sfo_calc_factor <- as.factor(as.factor(data_placette_album$u_sfo_calc))
+data_placette_album$plantation_factor <- as.factor(data_placette_album$plantation)
+data_placette_album$gest_factor <- as.factor(data_placette_album$gestion)
+data_placette_album$propriete_factor <- as.factor(data_placette_album$propriete)
+data_placette_album$gtot_ha <- as.numeric(data_placette_album$gtot_ha)
+
+# filter out lines with NAs for variables specified in the model, as it is important for AIC-based variable selection
+data_placette_album <- subset(data_placette_album,
+                                   !is.na(dens_tiges)
+                                   & !is.na(gtot_ha)
+                                   & !is.na(age_1)
+                                   & !is.na(plantation_factor)
+                                   & !is.na(propriete_factor)
+                                   & !is.na(div_rg1_factor)
+                                   & !(is.na(zp))
+                                   & !is.na(tnmoy)
+                                   & !is.na(txmoy)
+                                   & !is.na(rmoy)
+                                   & !is.na(reserutile)
+                                   & !is.na(troph_r)
+                                   & !is.na(hydr_r)
+                                   & !is.na(wc2.1_30s_bio_3)
+                                   & !is.na(wc2.1_30s_bio_6)
+                                   & !is.na(wc2.1_30s_bio_7)
+                                   & !is.na(wc2.1_30s_bio_18)
+)
+
+test_gam_placettes_album <- gam(
+  family = binomial(),
+  data = subset(data_placette_album
+  ),
+  formula = presence_album_bin ~ 
+ + s(dens_tiges, bs = "cr", k = 3)
+  + s(gtot_ha, bs = "cr", k = 3)
+  + s(age_1, bs = "cr", k = 3)
+  # + div_rg1_factor
+  + plantation_factor
+  + propriete_factor
+  + s(zp, bs = "cr", k = 3)
+  + s(tnmoy, bs = "cr", k = 3)
+  # + s(txmoy, bs = "cr", k = 3)
+  # + s(rmoy, bs = "cr", k = 3)
+  + s(reserutile, bs = "cr", k = 3)
+  + s(troph_r, bs = "cr", k = 3)
+  + s(hydr_r, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_6, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_7, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+    , weights = poids
+  , method = "REML"
+    )
+
+AIC(test_gam_placettes_album) # 4322
+anova(test_gam_placettes_album)
+
+plot(ggpredict(test_gam_placettes_album, c("plantation_factor")))
+
+summ_npp_album <- summary(test_gam_placettes_album)
+p.table <- as.data.frame(summ_npp_album$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_album_npp_new_autre2.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_npp_album$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_album_npp_new_autre2.csv", row.names = FALSE)
+
+spatialRF::vif(data_placette_album[, c("dens_tiges",
+                                       "gtot_ha",
+                                       "age_1",
+                                       "zp",
+                                       "div_rg1_factor",
+                                       "tnmoy",
+                                       # "txmoy",
+                                       "rmoy",
+                                       "reserutile",
+                                       "troph_r",
+                                       "hydr_r",
+                                       # "wc2.1_30s_bio_6",
+                                       "wc2.1_30s_bio_7",
+                                       "wc2.1_30s_bio_3",
+                                       "wc2.1_30s_bio_18"
+                                                  )])
+
+AIC(test_gam_placettes_album)
+
+binnedplot(fitted(test_gam_placettes_album), resid(test_gam_placettes_album, type = "response"))
+
+concurvity(test_gam_placettes_album)
+r2(test_gam_placettes_album)
+
+list_vars <- names(test_gam_placettes_album$model)[-c(1:3, ncol(test_gam_placettes_album$model))]
+
+data_predict <- data.frame()
+
+for(i in list_vars){
+  
+  predict_data_i <- ggpredict(test_gam_placettes_album, c(paste0(i, ' [all]')), weights = "poids")
+  predict_data_i$variable <- rep(i)
+  
+  data_predict <- rbind(data_predict, predict_data_i)
+  
+}
+
+saveRDS(data_predict, "predict_env_album_new_autre2.RDS")
+data_predict <- readRDS("predict_env_album_new_autre2.RDS")
+data_predict$variable_factor <- factor(data_predict$variable,
+                                       levels = c(
+                                         "hydr_r",
+                                         "troph_r",
+                                         "reserutile",
+                                         "dens_tiges",
+                                         "gtot_ha",
+                                         "age_1",
+                                         "zp",
+                                         "rmoy",
+                                         "tnmoy",
+                                         "txmoy",
+                                         "wc2.1_30s_bio_3",
+                                         "wc2.1_30s_bio_7",
+                                         "wc2.1_30s_bio_18"
+                                       )
+                                       )
+
+############################################################################################
+########################## FIGURE 2 - top panels ###########################################
+############################################################################################
+
+ggplot(data_predict)+
+  geom_ribbon(aes(x=x, ymin=ifelse(conf.low > 0, conf.low, 0), ymax=conf.high), fill="#26ad00", alpha = .3)+
+  geom_line(aes(x=x, y=predicted), color="#26ad00")+
+  theme_bw()+
+  facet_wrap(.~variable_factor, scales = "free", nrow = 2, labeller = as_labeller(c("hydr_r" = "hydric index",
+                                                                                    "reserutile" = "soil water reserve",
+                                                                                    "rmoy" = "precipitation normals",
+                                                                                    "dens_tiges" = "stem density",
+                                                                                    "tnmoy" = "min. temp. normals",
+                                                                                    "txmoy" = "max. temp. normals",
+                                                                                    "gtot_ha" = "stand basal area",
+                                                                                    "age_1" = "stand age",
+                                                                                    "zp" = "elevation",
+                                                                                    "troph_r" = "trophic index",
+                                                                                    "wc2.1_30s_bio_18" = "prec. warmest quarter",
+                                                                                    "wc2.1_30s_bio_3" = "isothermality",
+                                                                                    "wc2.1_30s_bio_7" = "temp. annual range"
+  ))
+             )+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+        )
+
+ggsave("pred_album_env_new_autre2.png", width = 16, height = 6, dpi = 300)
+ggsave("pred_album_env_new_autre2.svg", width = 16, height = 6)
+
+### effect species diversity and plantation ####
+
+predict_album_plantation <- ggpredict(test_gam_placettes_album, c('plantation_factor'))
+predict_album_plantation$x <- as.character(predict_album_plantation$x)
+predict_album_plantation$x[predict_album_plantation$x == "non plante"] <- "Absence (not planted)"
+predict_album_plantation$x[predict_album_plantation$x == "plante"] <- "Presence (planted)"
+predict_album_plantation$x <- factor(predict_album_plantation$x,
+                                          levels = c("Absence (not planted)", "Presence (planted)")
+)
+ggplot(predict_album_plantation)+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high), color = "#26ad00", width = .3)+
+  geom_point(aes(x=x, y=predicted), color = "#26ad00", size = 4)+
+  theme_bw()+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )
+
+predict_album_pro <- ggpredict(test_gam_placettes_album, c('propriete_factor'))
+predict_album_pro$x <- as.character(predict_album_pro$x)
+predict_album_pro$x[predict_album_pro$x == "Autre forêt publique"] <- "Other public forest"
+predict_album_pro$x[predict_album_pro$x == "Forêt domaniale"] <- "State-owned forest"
+predict_album_pro$x[predict_album_pro$x == "Forêt privée"] <- "Private forest"
+predict_album_pro$x <- factor(predict_album_pro$x,
+                                levels = c("Other public forest", "State-owned forest", "Private forest")
+)
+
+
+## Album peupleraie ##
+
+data_placette_album_peupleraie$div_rg1_factor <- as.factor(data_placette_album_peupleraie$div_rg1)
+data_placette_album_peupleraie$u_sfo_calc_factor <- as.factor(as.factor(data_placette_album_peupleraie$u_sfo_calc))
+data_placette_album_peupleraie$plantation_factor <- as.factor(data_placette_album_peupleraie$plantation)
+data_placette_album_peupleraie$gest_factor <- as.factor(data_placette_album_peupleraie$gestion)
+data_placette_album_peupleraie$propriete_factor <- as.factor(data_placette_album_peupleraie$propriete)
+data_placette_album_peupleraie$gtot_ha <- as.numeric(data_placette_album_peupleraie$gtot_ha)
+
+# filter out lines with NAs for variables specified in the model, as it is important for AIC-based variable selection
+data_placette_album_peupleraie <- subset(data_placette_album_peupleraie,
+                              !is.na(dens_tiges)
+                              & !is.na(gtot_ha)
+                              & !is.na(age_1)
+                              & !is.na(plantation_factor)
+                              & !is.na(propriete_factor)
+                              & !is.na(div_rg1_factor)
+                              & !(is.na(zp))
+                              & !is.na(tnmoy)
+                              & !is.na(txmoy)
+                              & !is.na(rmoy)
+                              & !is.na(reserutile)
+                              & !is.na(troph_r)
+                              & !is.na(hydr_r)
+                              & !is.na(wc2.1_30s_bio_3)
+                              & !is.na(wc2.1_30s_bio_6)
+                              & !is.na(wc2.1_30s_bio_7)
+                              & !is.na(wc2.1_30s_bio_18)
+)
+
+test_gam_placettes_album_peupleraie <- gam(
+  family = binomial(),
+  data = subset(data_placette_album_peupleraie, !is.na(age_1)
+  ),
+  formula = presence_album_peupleraie_bin ~ 
+  + s(dens_tiges, bs = "cr", k = 3)
+  + s(gtot_ha, bs = "cr", k = 3)
+  + s(age_1, bs = "cr", k = 3)
+  # + div_rg1_factor
+  # + plantation_factor
+  # + propriete_factor
+  # + s(zp, bs = "cr", k = 3)
+  + s(tnmoy, bs = "cr", k = 3)
+  # + s(txmoy, bs = "cr", k = 3)
+  # + s(rmoy, bs = "cr", k = 3)
+  # + s(reserutile, bs = "cr", k = 3)
+  # + s(troph_r, bs = "cr", k = 3)
+  # + s(hydr_r, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_6, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_7, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+  , weights = poids
+  , method = "REML"
+)
+
+AIC(test_gam_placettes_album_peupleraie) # 840
+anova(test_gam_placettes_album_peupleraie)
+
+summ_npp_album_peupleraie <- summary(test_gam_placettes_album_peupleraie)
+p.table <- as.data.frame(summ_npp_album_peupleraie$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_album_peupleraie_npp_new_peupleraie2.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_npp_album_peupleraie$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_album_peupleraie_npp_new_peupleraie2.csv", row.names = FALSE)
+
+spatialRF::vif(data_placette_album_peupleraie[, c("dens_tiges",
+                                       "gtot_ha",
+                                       "age_1",
+                                       "zp",
+                                       "div_rg1_factor",
+                                       "tnmoy",
+                                       # "txmoy",
+                                       "rmoy",
+                                       "reserutile",
+                                       "troph_r",
+                                       "hydr_r",
+                                       # "wc2.1_30s_bio_6",
+                                       "wc2.1_30s_bio_7",
+                                       "wc2.1_30s_bio_3",
+                                       "wc2.1_30s_bio_18"
+)])
+
+AIC(test_gam_placettes_album_peupleraie)
+
+binnedplot(fitted(test_gam_placettes_album_peupleraie), resid(test_gam_placettes_album_peupleraie, type = "response"))
+
+concurvity(test_gam_placettes_album_peupleraie)
+r2(test_gam_placettes_album_peupleraie)
+
+list_vars <- names(test_gam_placettes_album_peupleraie$model)[-c(1, ncol(test_gam_placettes_album_peupleraie$model))]
+
+data_predict <- data.frame()
+
+for(i in list_vars){
+  
+  predict_data_i <- ggpredict(test_gam_placettes_album_peupleraie, c(paste0(i, ' [all]')), weights = "poids")
+  predict_data_i$variable <- rep(i)
+  
+  data_predict <- rbind(data_predict, predict_data_i)
+  
+}
+
+saveRDS(data_predict, "predict_env_album_peupleraie_new_peupleraie2.RDS")
+data_predict <- readRDS("predict_env_album_peupleraie_new_peupleraie2.RDS")
+data_predict$variable_factor <- factor(data_predict$variable,
+                                       levels = c(
+                                         "hydr_r",
+                                         "troph_r",
+                                         "reserutile",
+                                         "dens_tiges",
+                                         "gtot_ha",
+                                         "age_1",
+                                         "zp",
+                                         "rmoy",
+                                         "tnmoy",
+                                         "txmoy",
+                                         "wc2.1_30s_bio_3",
+                                         "wc2.1_30s_bio_7",
+                                         "wc2.1_30s_bio_18"
+                                       )
+)
+
+############################################################################################
+########################## FIGURE 2 - top panels ###########################################
+############################################################################################
+
+ggplot(data_predict)+
+  geom_ribbon(aes(x=x, ymin=ifelse(conf.low > 0, conf.low, 0), ymax=conf.high), fill="#26ad00", alpha = .3)+
+  geom_line(aes(x=x, y=predicted), color="#26ad00")+
+  theme_bw()+
+  facet_wrap(.~variable_factor, scales = "free", nrow = 2, labeller = as_labeller(c("hydr_r" = "hydric index",
+                                                                                    "reserutile" = "soil water reserve",
+                                                                                    "rmoy" = "precipitation normals",
+                                                                                    "dens_tiges" = "stem density",
+                                                                                    "tnmoy" = "min. temp. normals",
+                                                                                    "txmoy" = "max. temp. normals",
+                                                                                    "gtot_ha" = "stand basal area",
+                                                                                    "age_1" = "stand age",
+                                                                                    "zp" = "elevation",
+                                                                                    "troph_r" = "trophic index",
+                                                                                    "wc2.1_30s_bio_18" = "prec. warmest quarter",
+                                                                                    "wc2.1_30s_bio_3" = "isothermality",
+                                                                                    "wc2.1_30s_bio_7" = "temp. annual range"
+  ))
+  )+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )
+
+ggsave("pred_album_peupleraie_env_new_peupleraie2.png", width = 16, height = 6, dpi = 300)
+ggsave("pred_album_peupleraie_env_new_peupleraie2.svg", width = 16, height = 6)
+
+
+## Figure 3 ##
+
+predict_album_plantation$ssp_gui <- "<i>album</i> (other than poplar grove)"
+predict_austriacum_plantation$ssp_gui <- "<i>austriacum</i>"
+predict_abietis_plantation$ssp_gui <- "<i>abietis</i>"
+
+pred_plantation_all <- rbind(predict_album_plantation,
+                             predict_austriacum_plantation,
+                             predict_abietis_plantation
+)
+
+pred_plantation_all$variable <- "Sign of plantation"
+
+predict_austriacum_div$ssp_gui <- "<i>austriacum</i>"
+predict_abietis_div$ssp_gui <- "<i>abietis</i>"
+
+pred_div_all <- rbind(predict_austriacum_div,
+                      predict_abietis_div
+)
+
+pred_div_all$variable <- "Number of predominant species"
+
+pred_plantation_div <- rbind(pred_plantation_all,
+                             pred_div_all
+                             )
+
+
+plot_plante <- ggplot(subset(pred_plantation_div, variable == "Sign of plantation"))+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high, color=ssp_gui), width = .2, position = position_dodge(width = .2))+
+  geom_point(aes(x=x, y=predicted, color=ssp_gui), size = 2, position = position_dodge(width = .2))+
+  scale_color_manual(name = "<i>V.album</i> subspecies", values = c("<i>album</i> (other than poplar grove)" = "#26ad00",
+                                                                    "<i>abietis</i>" = "#029dd1",
+                                                                    "<i>austriacum</i>" = "#4d00bf"
+  ))+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  facet_grid(.~variable)+
+  theme_bw()+
+  theme(legend.title = element_markdown(size = 12),
+        legend.text = element_markdown(size = 9),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.position = c(.5, .5)
+  ) +
+  coord_flip()
+
+legend <- ggpubr::get_legend(plot_plante)
+ggpubr::as_ggplot(legend)
+
+plot_plante <- ggplot(subset(pred_plantation_div, variable == "Sign of plantation"))+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high, color=ssp_gui), width = .2, position = position_dodge(width = .2))+
+  geom_point(aes(x=x, y=predicted, color=ssp_gui), size = 2, position = position_dodge(width = .2))+
+  scale_color_manual(name = "<i>V.album</i> subspecies", values = c("<i>album</i> (other than poplar grove)" = "#26ad00",
+                                                                    "<i>abietis</i>" = "#029dd1",
+                                                                    "<i>austriacum</i>" = "#4d00bf"
+  ))+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  facet_grid(.~variable)+
+  theme_bw()+
+  theme(legend.title = element_markdown(size = 12),
+        legend.text = element_markdown(size = 9),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.position = "none"
+  ) +
+  coord_flip()
+
+plot_div <- ggplot(subset(pred_plantation_div, variable == "Number of predominant species"))+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high, color=ssp_gui), width = .2, position = position_dodge(width = .2))+
+  geom_point(aes(x=x, y=predicted, color=ssp_gui), size = 2, position = position_dodge(width = .2))+
+  scale_color_manual(name = "<i>V.album</i> subspecies", values = c("<i>album</i> (other than poplar grove)" = "#26ad00",
+                                                                    "<i>abietis</i>" = "#029dd1",
+                                                                    "<i>austriacum</i>" = "#4d00bf"
+  ))+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  facet_grid(.~variable)+
+  theme_bw()+
+  theme(legend.title = element_markdown(size = 8),
+        legend.text = element_text(size = 6),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.position = "none"
+  ) +
+  coord_flip()
+
+predict_album_pro$ssp_gui <- "<i>album</i> (other than poplar grove)"
+predict_abietis_pro$ssp_gui <- "<i>abietis</i>"
+
+pred_pro_all <- rbind(predict_album_pro,
+                             predict_abietis_pro
+)
+
+pred_pro_all$variable <- "Forest ownership"
+plot_pro <- ggplot(subset(pred_pro_all))+
+  geom_errorbar(aes(x=x, ymin=conf.low, ymax=conf.high, color=ssp_gui), width = .2, position = position_dodge(width = .2))+
+  geom_point(aes(x=x, y=predicted, color=ssp_gui), size = 2, position = position_dodge(width = .2))+
+  scale_color_manual(name = "<i>V.album</i> subspecies", values = c("<i>album</i> (other than poplar grove)" = "#26ad00",
+                                                           "<i>abietis</i>" = "#029dd1",
+                                                           "<i>austriacum</i>" = "#4d00bf"
+  ))+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  facet_grid(.~variable)+
+  theme_bw()+
+  theme(legend.title = element_markdown(size = 8),
+        legend.text = element_text(size = 6),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.position = "none"
+  ) +
+  coord_flip()
+
+ggarrange(plot_plante, plot_div, plot_pro, as_ggplot(legend), align = "hv", nrow = 2, ncol = 2)
+
+ggsave("plante_div_pro_paspeupleraies2_corrected.png", width = 12, height = 8, dpi = 300)
+ggsave("plante_div_pro_paspeupleraies2_corrected.svg", width = 12, height = 8)
+
+
+## Album tout ##
+names(data_placette_album_peupleraie)[c(37, 38)] <- c("presence_album_bin", "presence_album_factor")
+data_placette_album_tout <- rbind(data_placette_album, data_placette_album_peupleraie)
+
+data_placette_album_tout$div_rg1_factor <- as.factor(data_placette_album_tout$div_rg1)
+data_placette_album_tout$u_sfo_calc_factor <- as.factor(as.factor(data_placette_album_tout$u_sfo_calc))
+data_placette_album_tout$plantation_factor <- as.factor(data_placette_album_tout$plantation)
+data_placette_album_tout$gest_factor <- as.factor(data_placette_album_tout$gestion)
+data_placette_album_tout$propriete_factor <- as.factor(data_placette_album_tout$propriete)
+data_placette_album_tout$gtot_ha <- as.numeric(data_placette_album_tout$gtot_ha)
+data_placette_album_tout$domaine_def_factor <- as.factor(data_placette_album_tout$domaine_def)
+
+test_gam_placettes_album_tout <- gam(
+  family = binomial(),
+  data = subset(data_placette_album_tout, !is.na(age_1)
+  ),
+  formula = presence_album_bin ~ 
+    + domaine_def_factor
+    + s(dens_tiges, bs = "cr", k = 3)
+  + s(gtot_ha, bs = "cr", k = 3)
+  + s(age_1, bs = "cr", k = 3)
+  # + u_sfo_calc_factor
+  + div_rg1_factor
+  + plantation_factor
+  + propriete_factor
+  # + gest_factor
+  + s(zp, bs = "cr", k = 3)
+  + s(tnmoy, bs = "cr", k = 3)
+  # + s(txmoy, bs = "cr", k = 3)
+  # + s(rmoy, bs = "cr", k = 3)
+  + s(reserutile, bs = "cr", k = 3)
+  + s(troph_r, bs = "cr", k = 3)
+  + s(hydr_r, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_6, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_7, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+  + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+  , weights = poids
+  , method = "REML"
+)
+
+AIC(test_gam_placettes_album_tout) # 5268
+anova(test_gam_placettes_album_tout)
+
+spatialRF::vif(data_placette_album_tout[, c("dens_tiges",
+                                                  "gtot_ha",
+                                                  "age_1",
+                                                  "zp",
+                                                  "div_rg1_factor",
+                                                  "tnmoy",
+                                                  # "txmoy",
+                                                  "rmoy",
+                                                  "reserutile",
+                                                  "troph_r",
+                                                  "hydr_r",
+                                                  # "wc2.1_30s_bio_6",
+                                                  "wc2.1_30s_bio_7",
+                                                  "wc2.1_30s_bio_3",
+                                                  "wc2.1_30s_bio_18"
+)])
+
+r2(test_gam_placettes_album_tout)
+
+list_vars <- names(test_gam_placettes_album_tout$model)[-c(1:5, ncol(test_gam_placettes_album_tout$model))]
+
+data_predict <- data.frame()
+
+for(i in list_vars){
+  
+  predict_data_i <- ggpredict(test_gam_placettes_album_tout, c(paste0(i, ' [all]')), weights = "poids")
+  predict_data_i$variable <- rep(i)
+  
+  data_predict <- rbind(data_predict, predict_data_i)
+  
+}
+
+saveRDS(data_predict, "predict_env_album_peupleraie_new_tout.RDS")
+data_predict <- readRDS("predict_env_album_peupleraie_new_tout.RDS")
+data_predict$variable_factor <- factor(data_predict$variable,
+                                       levels = c(
+                                         "hydr_r",
+                                         "troph_r",
+                                         "reserutile",
+                                         "dens_tiges",
+                                         "gtot_ha",
+                                         "age_1",
+                                         "zp",
+                                         "rmoy",
+                                         "tnmoy",
+                                         "txmoy",
+                                         "wc2.1_30s_bio_3",
+                                         "wc2.1_30s_bio_7",
+                                         "wc2.1_30s_bio_18"
+                                       )
+)
+
+############################################################################################
+########################## FIGURE 2 - top panels ###########################################
+############################################################################################
+
+ggplot(data_predict)+
+  geom_ribbon(aes(x=x, ymin=ifelse(conf.low > 0, conf.low, 0), ymax=conf.high), fill="#26ad00", alpha = .3)+
+  geom_line(aes(x=x, y=predicted), color="#26ad00")+
+  theme_bw()+
+  facet_wrap(.~variable_factor, scales = "free", nrow = 2, labeller = as_labeller(c("hydr_r" = "hydric index\n[unitless]",
+                                                                                    "reserutile" = "soil water reserve\n[mm]",
+                                                                                    "rmoy" = "precipitation normals\n[mm]",
+                                                                                    "dens_tiges" = "stem density\n[trees / ha]",
+                                                                                    "tnmoy" = "min. temp. normals\n[°C]",
+                                                                                    "txmoy" = "max. temp. normals\n[°C]",
+                                                                                    "gtot_ha" = "stand basal area\n[m² / ha]",
+                                                                                    "age_1" = "stand age\n[years]",
+                                                                                    "zp" = "elevation\n[m]",
+                                                                                    "troph_r" = "trophic index\n[unitless]",
+                                                                                    "wc2.1_30s_bio_18" = "prec. of warmest\nquarter [mm]",
+                                                                                    "wc2.1_30s_bio_3" = "isothermality\n[%]",
+                                                                                    "wc2.1_30s_bio_7" = "temp. annual range\n[°C]"
+  ))
+  )+
+  labs(x="", y="Predicted probability of mistletoe occurrence [unitless]")+
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 16),
+        plot.margin = margin(.5, 2, .5, .5, unit = "cm")
+  )
+
+ggsave("pred_album_peupleraie_env_new_peupleraie.png", width = 16, height = 6, dpi = 300)
+ggsave("pred_album_peupleraie_env_new_peupleraie.svg", width = 16, height = 6)
+
+######################################################################################################
+######################################### Tree-level models ##########################################
+######################################################################################################
+
+data_arbre <- read.csv("data_trees_2008_2022_v2.csv", header = TRUE)
+
+## Abietis ##
+
+data_arbre_abietis_bio <- subset(data_arbre, ssp_gui == "abietis")
+data_arbre_abietis_bio$mortbg2_factor <- as.factor(data_arbre_abietis_bio$mortbg2)
+data_arbre_abietis_bio$npp_factor <- as.factor(data_arbre_abietis_bio$npp)
+
+test_gam_arbres_abietis <- gam(
+  family = binomial,
+  data = subset(data_arbre_abietis_bio, mortbg2 != "X"),
+  formula = is_gui_bin ~ 
+    s(c13, bs = "cr",  k = 4)
+  + mortbg2_factor
+  + s(npp_factor, bs = "re")
+  
+  , weights = poids_models
+)
+
+binnedplot(fitted(test_gam_arbres_abietis), resid(test_gam_arbres_abietis, type = "response"))
+
+saveRDS(test_gam_arbres_abietis, "gam_mortbg2_abietis_reduced_corrected.RDS")
+test_gam_arbres_abietis <- readRDS("gam_mortbg2_abietis_reduced_corrected.RDS")
+
+summ_a_abiet <- summary(test_gam_arbres_abietis)
+p.table <- as.data.frame(summ_a_abiet$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_abiet_a_new.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_a_abiet$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_abiet_a_new.csv", row.names = FALSE)
+
+concurvity(test_gam_arbres_abietis)
+r2(test_gam_arbres_abietis)
+
+pred_mortbg2_abietis <- ggaverage(test_gam_arbres_abietis, c('mortbg2_factor [all]'))
+saveRDS(pred_mortbg2_abietis, "pred_values_mortbg2_average_abietis_reduced_corrected.RDS")
+pred_mortbg2_abietis <- readRDS("pred_values_mortbg2_average_abietis_reduced_corrected.RDS")
+
+## Austriacum ##
+
+data_arbre_austriacum_bio <- subset(data_arbre, ssp_gui == "austriacum")
+data_arbre_austriacum_bio$mortbg2_factor <- as.factor(data_arbre_austriacum_bio$mortbg2)
+data_arbre_austriacum_bio$npp_factor <- as.factor(data_arbre_austriacum_bio$npp)
+
+test_gam_arbres_austriacum <- gam(
+  family = binomial,
+  data = subset(data_arbre_austriacum_bio, mortbg2 != "X"),
+  formula = is_gui_bin ~ 
+    s(c13, bs = "cr",  k = 4)
+  + mortbg2_factor
+  + s(npp_factor, bs = "re")
+  
+  , weights = poids_models
+)
+
+binnedplot(fitted(test_gam_arbres_austriacum), resid(test_gam_arbres_austriacum, type = "response"))
+
+summ_a_austr <- summary(test_gam_arbres_austriacum)
+p.table <- as.data.frame(summ_a_austr$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_austr_a_new.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_a_austr$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_austr_a_new.csv", row.names = FALSE)
+
+concurvity(test_gam_arbres_austriacum)
+r2(test_gam_arbres_austriacum)
+
+saveRDS(test_gam_arbres_austriacum, "gam_mortbg2_austriacum_reduced_corrected.RDS")
+test_gam_arbres_austriacum <- readRDS("gam_mortbg2_austriacum_reduced_corrected.RDS")
+
+pred_mortbg2_austriacum <- ggaverage(test_gam_arbres_austriacum, c('mortbg2_factor [all]'))
+saveRDS(pred_mortbg2_austriacum, "pred_values_mortbg2_average_austriacum_reduced_corrected.RDS")
+pred_mortbg2_austriacum <- readRDS("pred_values_mortbg2_average_austriacum_reduced_corrected.RDS")
+
+## Album ##
+
+data_arbre_album_bio <- subset(data_arbre, ssp_gui == "album" & !npp %in% data_placette$npp[data_placette$domaine_def == "peupleraie"])
+data_arbre_album_bio$mortbg2_factor <- as.factor(data_arbre_album_bio$mortbg2)
+data_arbre_album_bio$npp_factor <- as.factor(data_arbre_album_bio$npp)
+
+test_gam_arbres_album <- gam(
+  family = binomial,
+  data = subset(data_arbre_album_bio, mortbg2 != "X"),
+  formula = is_gui_bin ~ 
+    s(c13, bs = "cr",  k = 4)
+  + mortbg2_factor
+  + s(npp_factor, bs = "re")
+  , weights = poids_models
+)
+
+binnedplot(fitted(test_gam_arbres_album), resid(test_gam_arbres_album, type = "response"))
+
+summ_a_album <- summary(test_gam_arbres_album)
+p.table <- as.data.frame(summ_a_album$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_album_a_autre.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_a_album$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_album_a_autre.csv", row.names = FALSE)
+
+concurvity(test_gam_arbres_album)
+r2(test_gam_arbres_album)
+
+saveRDS(test_gam_arbres_album, "gam_mortbg2_album_reduced_corrected_autre.RDS")
+test_gam_arbres_album <- readRDS("gam_mortbg2_album_reduced_corrected_autre.RDS")
+
+pred_mortbg2_album <- ggaverage(test_gam_arbres_album, c('mortbg2_factor [all]'))
+saveRDS(pred_mortbg2_album, "pred_values_mortbg2_average_album_reduced_corrected_autre.RDS")
+pred_mortbg2_album <- readRDS("pred_values_mortbg2_average_album_reduced_corrected_autre.RDS")
+
+## Album peupleraie ##
+
+data_arbre_album_peupleraie_bio <- subset(data_arbre, ssp_gui == "album" & npp %in% data_placette$npp[data_placette$domaine_def == "peupleraie"])
+data_arbre_album_peupleraie_bio$mortbg2_factor <- as.factor(data_arbre_album_peupleraie_bio$mortbg2)
+data_arbre_album_peupleraie_bio$npp_factor <- as.factor(data_arbre_album_peupleraie_bio$npp)
+
+test_gam_arbres_album_peupleraie <- gam(
+  family = binomial,
+  data = subset(data_arbre_album_peupleraie_bio, mortbg2 != "X"),
+  formula = is_gui_bin ~ 
+    s(c13, bs = "cr",  k = 4)
+  + mortbg2_factor
+  + s(npp_factor, bs = "re")
+  , weights = poids_models
+)
+
+binnedplot(fitted(test_gam_arbres_album_peupleraie), resid(test_gam_arbres_album_peupleraie, type = "response"))
+
+summ_a_album_peupleraie <- summary(test_gam_arbres_album_peupleraie)
+p.table <- as.data.frame(summ_a_album_peupleraie$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_album_peupleraie_a_peupleraie.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_a_album_peupleraie$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_album_peupleraie_a_peupleraie.csv", row.names = FALSE)
+
+concurvity(test_gam_arbres_album_peupleraie)
+r2(test_gam_arbres_album_peupleraie)
+
+saveRDS(test_gam_arbres_album_peupleraie, "gam_mortbg2_album_peupleraie_reduced_corrected_peupleraie.RDS")
+test_gam_arbres_album_peupleraie <- readRDS("gam_mortbg2_album_peupleraie_reduced_corrected_peupleraie.RDS")
+
+pred_mortbg2_album_peupleraie <- ggaverage(test_gam_arbres_album_peupleraie, c('mortbg2_factor [all]'))
+saveRDS(pred_mortbg2_album_peupleraie, "pred_values_mortbg2_average_album_peupleraie_reduced_corrected_peupleraie.RDS")
+
+pred_mortbg2_album$ssp_gui <- "album (other than poplar grove)"
+pred_mortbg2_album_peupleraie$ssp_gui <- "album (poplar grove)"
+pred_mortbg2_austriacum$ssp_gui <- "austriacum"
+pred_mortbg2_abietis$ssp_gui <- "abietis"
+
+pred_mortbg2_all <- rbind(pred_mortbg2_abietis,
+                          pred_mortbg2_austriacum,
+                          pred_mortbg2_album,
+                          pred_mortbg2_album_peupleraie
+                          )
+
+pred_mortbg2_all$mortbg2[pred_mortbg2_all$x == 0] <- "0-5%"
+pred_mortbg2_all$mortbg2[pred_mortbg2_all$x == 1] <- "5-25%"
+pred_mortbg2_all$mortbg2[pred_mortbg2_all$x == 2] <- "25-50%"
+pred_mortbg2_all$mortbg2[pred_mortbg2_all$x == 3] <- "50-95%"
+pred_mortbg2_all$mortbg2[pred_mortbg2_all$x == 4] <- ">95%"
+
+pred_mortbg2_all$mortbg2 <- factor(pred_mortbg2_all$mortbg2,
+                                   levels = c("0-5%",
+                                              "5-25%",
+                                              "25-50%",
+                                              "50-95%",
+                                              ">95%"
+                                              )
+                                   )
+############################################################################################
+########################## FIGURE 3 ########################################################
+############################################################################################
+
+ggplot(pred_mortbg2_all)+
+  geom_errorbar(aes(x=mortbg2, ymin=conf.low, ymax=conf.high, color=ssp_gui, linetype = ssp_gui), width = .2, position = position_dodge(width = .4))+
+  geom_point(aes(x=mortbg2, y=predicted, color=ssp_gui, shape = ssp_gui), size = 2, position = position_dodge(width = .4))+
+  scale_color_manual(name = "<i>V.album</i> subspecies", values = c("album (other than poplar grove)" = "#26ad00",
+                                                                    "album (poplar grove)" = "#26ad00",
+                                                             "abietis" = "#029dd1",
+                                                             "austriacum" = "#4d00bf"
+                                                             ))+
+  scale_shape_manual(name = "<i>V.album</i> subspecies", values = c("album (other than poplar grove)" = 19,
+                                                                    "album (poplar grove)" = 5,
+                                                                    "abietis" = 19,
+                                                                    "austriacum" = 19
+  ))+
+  scale_linetype_manual(name = "<i>V.album</i> subspecies", values = c("album (other than poplar grove)" = "solid",
+                                                                    "album (poplar grove)" = "dotted",
+                                                                    "abietis" = "solid",
+                                                                    "austriacum" = "solid"
+  ))+
+  labs(x="Crown dieback class", y="Predicted probability of tree infestation")+
+  theme_bw()+
+  theme(legend.title = element_markdown(size = 14),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.position = c(.15, .9)
+        )
+
+ggsave("pred_mortbg2_reduced_peupleraies_separees.png", width = 10, height = 8, dpi = 300)
+
+
+############################################################################################
+########################## tree-level models - growth ######################################
+############################################################################################
+
+data_ir5_bio <- read.csv("data_ir5_2008_2022_v2.csv", header = TRUE)
+data_ir5_bio$sfgui_factor <- as.factor(data_ir5_bio$sfgui)
+data_ir5_bio$npp_factor <- as.factor(data_ir5_bio$npp)
+
+data_ir5_bio <- left_join(data_ir5_bio, data_placette[, c("npp", "cac", "u_sfo_calc", "gtot_ha", "gest", "plantation", "gestion", "propriete")], by = c("npp"))
+
+data_ir5_bio$div_rg1_factor <- as.factor(data_ir5_bio$div_rg1)
+data_ir5_bio$ess_factor <- as.factor(data_ir5_bio$ess)
+data_ir5_bio$u_sfo_calc_factor <- as.factor(as.factor(data_ir5_bio$u_sfo_calc))
+data_ir5_bio$plantation_factor <- as.factor(data_ir5_bio$plantation)
+data_ir5_bio$propriete_factor <- as.factor(data_ir5_bio$propriete)
+data_ir5_bio$gest_factor <- as.factor(data_ir5_bio$gestion)
+data_ir5_bio$gtot_ha <- as.numeric(data_ir5_bio$gtot_ha)
+
+
+## Abietis ##
+
+# filter out lines with NAs for variables specified in the model, as it is important for AIC-based variable selection
+data_abietis_ir5 <- subset(data_ir5_bio, ssp_gui == "abietis" 
+                         & !is.na(dens_tiges)
+                         & !is.na(gtot_ha)
+                         & !is.na(age_1)
+                         & !is.na(plantation_factor)
+                         & !is.na(propriete_factor)
+                         & !is.na(div_rg1_factor)
+                         & !(is.na(zp))
+                         & !is.na(tnmoy)
+                         & !is.na(txmoy)
+                         & !is.na(rmoy)
+                         & !is.na(reserutile)
+                         & !is.na(troph_r)
+                         & !is.na(hydr_r)
+                         & !is.na(wc2.1_30s_bio_3)
+                         & !is.na(wc2.1_30s_bio_6)
+                         & !is.na(wc2.1_30s_bio_7)
+                         & !is.na(wc2.1_30s_bio_18)
+)
+
+test_gam_ir5_abietis <- gam(
+  data = data_abietis_ir5,
+  formula = log(croissance_5ans) ~ 
+    s(c13, bs = "cr",  k = 4)
+  # + div_rg1_factor
+  + s(gtot_ha, bs = "cr", k = 3)
+  # + propriete_factor
+  # + plantation_factor
+  + sfgui_factor
+  # + s(dens_tiges, bs = "cr", k = 3)
+  # + s(tnmoy, bs = "cr", k = 3)
+  # + s(txmoy, bs = "cr", k = 3)
+  # + s(rmoy, bs = "cr", k = 3)
+  # + s(reserutile, bs = "cr", k = 3)
+  # + s(troph_r, bs = "cr", k = 3)
+  + s(hydr_r, bs = "cr", k = 3)
+  # + s(zp, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_7, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_6, bs = "cr", k = 3)
+  + s(age_1, bs = "cr", k = 3)
+  
+  + s(npp_factor, bs = "re")
+  
+  , weights = poids_models
+  , method = "REML"
+)
+
+AIC(test_gam_ir5_abietis) #6859
+anova(test_gam_ir5_abietis)
+
+spatialRF::vif(subset(data_ir5_bio, ssp_gui == "abietis" )[, c("c13",
+                                                              "zp",
+                                                               "txmoy",
+                                                               "tnmoy",
+                                                               "dens_tiges",
+                                                              "gtot_ha",
+                                                              "age_1",
+                                                               "rmoy",
+                                                               "reserutile",
+                                                               "troph_r",
+                                                               "hydr_r",
+                                                               "wc2.1_30s_bio_7",
+                                                               "wc2.1_30s_bio_3",
+                                                                "wc2.1_30s_bio_6",
+                                                               "wc2.1_30s_bio_18"
+)])
+
+plot(resid(test_gam_ir5_abietis, type = "response")~fitted(test_gam_ir5_abietis))
+
+concurvity(test_gam_ir5_abietis)
+r2(test_gam_ir5_abietis)
+
+summ_ir5_abiet <- summary(test_gam_ir5_abietis)
+p.table <- as.data.frame(summ_ir5_abiet$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_abiet_ir5_c13_new2.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_ir5_abiet$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_abiet_ir5_c13_new2.csv", row.names = FALSE)
+
+saveRDS(test_gam_ir5_abietis, "gam_modele_ir5_abietis_divrg1_c13_corrected_new2.RDS")
+test_gam_ir5_abietis <- readRDS("gam_modele_ir5_abietis_divrg1_c13_corrected_new2.RDS")
+
+ave_pred_ir5_abietis <- ggaverage(test_gam_ir5_abietis, c('sfgui_factor [all]'), weights = "poids_models")
+saveRDS(ave_pred_ir5_abietis, "pred_values_average_c13_corrected_new2.RDS")
+
+## Austriacum ##
+
+# filter out lines with NAs for variables specified in the model, as it is important for AIC-based variable selection
+data_austriacum_ir5 <- subset(data_ir5_bio, ssp_gui == "austriacum" 
+                           & !is.na(dens_tiges)
+                           & !is.na(gtot_ha)
+                           & !is.na(age_1)
+                           & !is.na(plantation_factor)
+                           & !is.na(propriete_factor)
+                           & !is.na(div_rg1_factor)
+                           & !(is.na(zp))
+                           & !is.na(tnmoy)
+                           & !is.na(txmoy)
+                           & !is.na(rmoy)
+                           & !is.na(reserutile)
+                           & !is.na(troph_r)
+                           & !is.na(hydr_r)
+                           & !is.na(wc2.1_30s_bio_3)
+                           & !is.na(wc2.1_30s_bio_6)
+                           & !is.na(wc2.1_30s_bio_7)
+                           & !is.na(wc2.1_30s_bio_18)
+)
+
+test_gam_ir5_austriacum <- gam(
+  data = data_austriacum_ir5,
+  formula = log(croissance_5ans) ~ 
+    s(c13, bs = "cr",  k = 4)
+  # + s(gtot_ha, bs = "cr", k = 3)
+  # + div_rg1_factor
+  # + propriete_factor
+  # + plantation_factor
+  + sfgui_factor
+  + ess_factor
+  + ess_factor:sfgui_factor
+  # + s(txmoy, bs = "cr", k = 3)
+  # + s(tnmoy, bs = "cr", k = 3)
+  # + s(rmoy, bs = "cr", k = 3)
+  + s(dens_tiges, bs = "cr", k = 3)
+  # + s(reserutile, bs = "cr", k = 3)
+  # + s(troph_r, bs = "cr", k = 3)
+  + s(hydr_r, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+  + s(age_1, bs = "cr", k = 3)
+  
+  + s(npp_factor, bs = "re")
+  
+  , weights = poids_models
+  , method = "REML"
+)
+
+AIC(test_gam_ir5_austriacum) # 4683.78 4683.143 4682.662 4682.602 4681.134 4680.602 4680.61 4680.698 4680.289 4680.775 4679.83 4680.835
+anova(test_gam_ir5_austriacum)
+
+saveRDS(test_gam_ir5_austriacum, "gam_modele_ir5_austriacum_divrg1_c13_corrected_new2.RDS")
+test_gam_ir5_austriacum <- readRDS("gam_modele_ir5_austriacum_divrg1_c13_corrected_new2.RDS")
+
+summ_ir5_austr <- summary(test_gam_ir5_austriacum)
+p.table <- as.data.frame(summ_ir5_austr$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_austr_ir5_c13_new2.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_ir5_austr$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_austr_ir5_c13_new2.csv", row.names = FALSE)
+
+spatialRF::vif(subset(data_ir5_bio, ssp_gui == "austriacum")[, c("c13",
+                                                              "txmoy",
+                                                              "tnmoy",
+                                                              "dens_tiges",
+                                                              "rmoy",
+                                                              "reserutile",
+                                                              "troph_r",
+                                                              "hydr_r",
+                                                              "wc2.1_30s_bio_3",
+                                                              "wc2.1_30s_bio_18"
+)])
+
+plot(resid(test_gam_ir5_austriacum, type = "response")~fitted(test_gam_ir5_austriacum))
+
+concurvity(test_gam_ir5_austriacum)
+r2(test_gam_ir5_austriacum)
+
+ave_pred_ir5_austriacum <- ggaverage(test_gam_ir5_austriacum, c('ess_factor [all]', 'sfgui_factor [all]'), weights = "poids_models")
+saveRDS(ave_pred_ir5_austriacum, "pred_values_ir5_average_austriacum_c13_corrected_new2.RDS")
+
+## Album ##
+
+# filter out lines with NAs for variables specified in the model, as it is important for AIC-based variable selection
+data_album_ir5 <- subset(data_ir5_bio, ssp_gui == "album"  
+                         & ess != 41 # too low number of samples for this specific species
+                         & !is.na(dens_tiges)
+                         & !is.na(gtot_ha)
+                         & !is.na(age_1)
+                         & !is.na(plantation_factor)
+                         & !is.na(propriete_factor)
+                         & !is.na(div_rg1_factor)
+                         & !(is.na(zp))
+                         & !is.na(tnmoy)
+                         & !is.na(txmoy)
+                         & !is.na(rmoy)
+                         & !is.na(reserutile)
+                         & !is.na(troph_r)
+                         & !is.na(hydr_r)
+                         & !is.na(wc2.1_30s_bio_3)
+                         & !is.na(wc2.1_30s_bio_6)
+                         & !is.na(wc2.1_30s_bio_7)
+                         & !is.na(wc2.1_30s_bio_18)
+                         )
+
+test_gam_ir5_album <- gam(
+  data = data_album_ir5,
+  formula = log(croissance_5ans) ~ 
+    s(c13, bs = "cr",  k = 4)
+  # + s(gtot_ha, bs = "cr", k = 3)
+  # + div_rg1_factor
+  # + propriete_factor
+  # + plantation_factor
+  + sfgui_factor
+  + ess_factor
+  + ess_factor:sfgui_factor
+  # + s(tnmoy, bs = "cr", k = 3)
+  # + s(rmoy, bs = "cr", k = 3)
+  # + s(dens_tiges, bs = "cr", k = 3)
+  # + s(reserutile, bs = "cr", k = 3)
+  # + s(troph_r, bs = "cr", k = 3)
+  + s(hydr_r, bs = "cr", k = 3)
+  + s(zp, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_7, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_3, bs = "cr", k = 3)
+  # + s(wc2.1_30s_bio_18, bs = "cr", k = 3)
+  
+  + s(age_1, bs = "cr", k = 3)
+  
+  + s(npp_factor, bs = "re")
+  
+  , weights = poids_models,
+  method = "REML"
+)
+
+AIC(test_gam_ir5_album) #3828
+anova(test_gam_ir5_album)
+
+saveRDS(test_gam_ir5_album, "gam_modele_ir5_album_divrg1_noess41_c13_corrected_new2.RDS")
+test_gam_ir5_album <- readRDS("gam_modele_ir5_album_divrg1_noess41_c13_corrected_new2.RDS")
+
+summ_ir5_album <- summary(test_gam_ir5_album)
+p.table <- as.data.frame(summ_ir5_album$p.table)
+p.table$var <- rownames(p.table)
+write.csv(p.table, "coefs_album_ir5_noess41_c13_new2.csv", row.names = FALSE)
+
+s.table <- as.data.frame(summ_ir5_album$s.table)
+s.table$var <- rownames(s.table)
+write.csv(s.table, "coefs_smooth_album_ir5_noess41_c13_new2.csv", row.names = FALSE)
+
+plot(resid(test_gam_ir5_album, type = "response")~fitted(test_gam_ir5_album))
+
+concurvity(test_gam_ir5_album)
+r2(test_gam_ir5_album)
+
+spatialRF::vif(subset(data_ir5_bio, ssp_gui == "album"   & c13 > .708)[, c("c13",
+                                                            "zp",
+                                                            "tnmoy",
+                                                            "dens_tiges",
+                                                            "rmoy",
+                                                            "reserutile",
+                                                            "troph_r",
+                                                            "hydr_r",
+                                                            "wc2.1_30s_bio_7",
+                                                            "wc2.1_30s_bio_3",
+                                                            "wc2.1_30s_bio_18"
+)])
+
+ave_pred_ir5_album <- ggaverage(test_gam_ir5_album, c('ess_factor [all]', 'sfgui_factor [all]'), weights = "poids_models")
+saveRDS(ave_pred_ir5_album, "pred_values_ir5_average_album_noess41_c13_corrected_new2.RDS")
+
+ave_pred_ir5_austriacum <- readRDS("pred_values_ir5_average_austriacum_c13_corrected_new2.RDS")
+ave_pred_ir5_austriacum$ssp_gui <- "austriacum"
+ave_pred_ir5_abietis <- readRDS("pred_values_average_c13_corrected_new2.RDS")
+ave_pred_ir5_abietis$ssp_gui <- "abietis"
+ave_pred_ir5_abietis$group <- ave_pred_ir5_abietis$x
+ave_pred_ir5_abietis$x <- rep(as.factor(61))
+ave_pred_ir5_album <- readRDS("pred_values_ir5_average_album_noess41_c13_corrected_new2.RDS")
+ave_pred_ir5_album$ssp_gui <- "album"
+
+ave_pred_ir5_all <- rbind(ave_pred_ir5_austriacum,
+                          ave_pred_ir5_abietis,
+                          ave_pred_ir5_album
+                          )
+unique(ave_pred_ir5_all$x)
+ave_pred_ir5_all$x <- as.character(ave_pred_ir5_all$x)
+
+mod_ess <- read.csv("Modalites_ESS.csv")
+mod_ess$mode <- as.character(mod_ess$mode)
+
+ave_pred_ir5_all_lib <- inner_join(ave_pred_ir5_all, mod_ess, by = c("x" = "mode"))
+ave_pred_ir5_all_lib$labs[ave_pred_ir5_all_lib$group == "0"] <- "no cluster"
+ave_pred_ir5_all_lib$labs[ave_pred_ir5_all_lib$group == "1"] <- "1-2 clusters"
+ave_pred_ir5_all_lib$labs[ave_pred_ir5_all_lib$group == "2"] <- "3-5 clusters"
+ave_pred_ir5_all_lib$labs[ave_pred_ir5_all_lib$group == "3"] <- "more than 5 clusters"
+ave_pred_ir5_all_lib$labs <- factor(ave_pred_ir5_all_lib$labs,
+                                       levels = c("no cluster",
+                                                  "1-2 clusters",
+                                                  "3-5 clusters",
+                                                  "more than 5 clusters"
+                                                  )
+                                       )
+
+############################################################################################
+########################## Figure 4 ########################################################
+############################################################################################
+
+ggplot(ave_pred_ir5_all_lib)+
+  geom_errorbar(aes(x=libelle, ymin=conf.low, ymax=conf.high, color = labs), position = position_dodge(width = .6), width = .4)+
+  geom_point(aes(x=libelle, y=predicted, color = labs), position = position_dodge(width = .6), size = 2)+
+  scale_color_manual(name = "Number of\nMistletoe clusters", values = c("no cluster" = "#5cb3fa",
+                                                             "1-2 clusters" = "#ffee7d",
+                                                             "3-5 clusters" = "#ffac69",
+                                                             "more than 5 clusters" = "#ff8269"
+                                                             )
+                     )+
+  labs(x = "", y = "5-yr growth [mm]")+
+  theme_bw()+
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16),
+        legend.position = "right",
+        legend.direction = "vertical"
+        )+
+  coord_flip()
+
+ggsave("ir5_mistletoe_species_noess41_c13_v1_new2.png", width = 10, height = 8, dpi = 300)
+
+####################################################################################
+############## SUPPLEMENTARY FIGURES ###############################################
+####################################################################################
+
+## test abietis Vosges
+
+test_gam_arbres_abietis <- gam(
+  family = binomial,
+  data = subset(data_arbre_abietis_bio, mortbg2 != "X" & greco == "D"),
+  formula = is_gui_bin ~ 
+    s(c13, bs = "cr",  k = 4)
+  + mortbg2_factor
+  + te(npp_factor, bs = "re", k = 3)
+  
+  , weights = poids_models
+)
+
+pred_mortbg2_abietis <- ggpredict(test_gam_arbres_abietis, c('mortbg2_factor [all]'))
+
+pred_mortbg2_abietis$mortbg2[pred_mortbg2_abietis$x == 0] <- "0-5%"
+pred_mortbg2_abietis$mortbg2[pred_mortbg2_abietis$x == 1] <- "5-25%"
+pred_mortbg2_abietis$mortbg2[pred_mortbg2_abietis$x == 2] <- "25-50%"
+pred_mortbg2_abietis$mortbg2[pred_mortbg2_abietis$x == 3] <- "50-95%"
+pred_mortbg2_abietis$mortbg2[pred_mortbg2_abietis$x == 4] <- ">95%"
+
+pred_mortbg2_abietis$mortbg2 <- factor(pred_mortbg2_abietis$mortbg2,
+                                   levels = c("0-5%",
+                                              "5-25%",
+                                              "25-50%",
+                                              "50-95%",
+                                              ">95%"
+                                   )
+)
+
+library(ggtext)
+ggplot(pred_mortbg2_abietis)+
+  geom_errorbar(aes(x=mortbg2, ymin=conf.low, ymax=conf.high), color="#029dd1", width = .4)+
+  geom_point(aes(x=mortbg2, y=predicted), size = 2, color="#029dd1")+
+  labs(y="Predicted probability of tree infestation", x="Crown dieback class", 
+       title = "Relationship between crown dieback and fir mistletoe infestation", 
+       subtitle = "in the Vosges ecological region")+
+  theme_bw()+
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12)
+  )
+
+ggsave("pred_mortbg2_abietis_Vosges.png", width = 10, height = 8, dpi = 300)
+
+## test austriacum Alpes
+
+test_gam_arbres_austriacum <- gam(
+  family = binomial,
+  data = subset(data_arbre_austriacum_bio, mortbg2 != "X" & ser_86 %in% c("H30", "H41", "H42")),
+  formula = is_gui_bin ~ 
+    s(c13, bs = "cr",  k = 4)
+  + mortbg2_factor
+  + te(npp_factor, bs = "re", k = 3)
+  
+  , weights = poids_models
+)
+
+pred_mortbg2_austriacum <- ggaverage(test_gam_arbres_austriacum, c('mortbg2_factor'))
+
+pred_mortbg2_austriacum$mortbg2[pred_mortbg2_austriacum$x == 0] <- "0-5%"
+pred_mortbg2_austriacum$mortbg2[pred_mortbg2_austriacum$x == 1] <- "5-25%"
+pred_mortbg2_austriacum$mortbg2[pred_mortbg2_austriacum$x == 2] <- "25-50%"
+pred_mortbg2_austriacum$mortbg2[pred_mortbg2_austriacum$x == 3] <- "50-95%"
+pred_mortbg2_austriacum$mortbg2[pred_mortbg2_austriacum$x == 4] <- ">95%"
+
+pred_mortbg2_austriacum$mortbg2 <- factor(pred_mortbg2_austriacum$mortbg2,
+                                       levels = c("0-5%",
+                                                  "5-25%",
+                                                  "25-50%",
+                                                  "50-95%",
+                                                  ">95%"
+                                       )
+)
+
+library(ggtext)
+ggplot(pred_mortbg2_austriacum)+
+  geom_errorbar(aes(x=mortbg2, ymin=conf.low, ymax=conf.high), color="#4d00bf", width = .4)+
+  geom_point(aes(x=mortbg2, y=predicted), size = 2, color="#4d00bf")+
+  labs(y="Predicted probability of tree infestation", x="Crown dieback class", 
+       title = "Relationship between crown dieback and pine mistletoe infestation", 
+       subtitle = "in the southern Alps ecological region")+
+  theme_bw()+
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12)
+  )
+
+ggsave("pred_mortbg2_austriacum_AlpesSud.png", width = 10, height = 8, dpi = 300)
+
+## relationship c13 - mistletoe infestation ##
+
+set.seed(123)
+
+newxy1_abiet <- data.frame(c13 = rnorm(n= 1000, mean = mean(data_arbre_abietis_bio$c13), sd = sd(data_arbre_abietis_bio$c13)),
+                           mortbg2_factor = factor(c(0), levels = levels(data_arbre_abietis_bio$mortbg2_factor))
+)
+z1_abiet <- predict(test_gam_arbres_abietis, newdata = newxy1_abiet, newdata.guaranteed = TRUE, exclude = 's(npp_factor)', se.fit = TRUE)
+newxy1_abiet$fit <- plogis(z1_abiet$fit)
+newxy1_abiet$se.fit <- plogis(z1_abiet$se.fit)
+newxy1_abiet$low <- plogis(z1_abiet$fit - 1.96 * z1_abiet$se.fit)
+newxy1_abiet$upp <- plogis(z1_abiet$fit + 1.96 * z1_abiet$se.fit)
+newxy1_abiet$subspecies <- "<i>abietis</i>"
+
+
+newxy1_austr <- data.frame(c13 = rnorm(n= 1000, mean = mean(data_arbre_austriacum_bio$c13), sd = sd(data_arbre_austriacum_bio$c13)),
+                           mortbg2_factor = factor(c(0), levels = levels(data_arbre_austriacum_bio$mortbg2_factor))
+)
+z1_austr <- predict(test_gam_arbres_austriacum, newdata = newxy1_austr, newdata.guaranteed = TRUE, exclude = 's(npp_factor)', se.fit = TRUE)
+newxy1_austr$fit <- plogis(z1_austr$fit)
+newxy1_austr$se.fit <- plogis(z1_austr$se.fit)
+newxy1_austr$low <- plogis(z1_austr$fit - 1.96 * z1_austr$se.fit)
+newxy1_austr$upp <- plogis(z1_austr$fit + 1.96 * z1_austr$se.fit)
+newxy1_austr$subspecies <- "<i>austriacum</i>"
+
+newxy1_album <- data.frame(c13 = rnorm(n= 1000, mean = mean(data_arbre_album_bio$c13), sd = sd(data_arbre_album_bio$c13)),
+                           mortbg2_factor = factor(c(0), levels = levels(data_arbre_album_bio$mortbg2_factor))
+)
+z1_album <- predict(test_gam_arbres_album, newdata = newxy1_album, newdata.guaranteed = TRUE, exclude = 's(npp_factor)', se.fit = TRUE)
+newxy1_album$fit <- plogis(z1_album$fit)
+newxy1_album$se.fit <- plogis(z1_album$se.fit)
+newxy1_album$low <- plogis(z1_album$fit - 1.96 * z1_album$se.fit)
+newxy1_album$upp <- plogis(z1_album$fit + 1.96 * z1_album$se.fit)
+newxy1_album$subspecies <- "<i>album</i> (other than poplar grove)"
+
+newxy1_album_peupleraie <- data.frame(c13 = rnorm(n= 1000, mean = mean(data_arbre_album_peupleraie_bio$c13), sd = sd(data_arbre_album_peupleraie_bio$c13)),
+                           mortbg2_factor = factor(c(0), levels = levels(data_arbre_album_peupleraie_bio$mortbg2_factor))
+)
+z1_album_peupleraie <- predict(test_gam_arbres_album_peupleraie, newdata = newxy1_album_peupleraie, newdata.guaranteed = TRUE, exclude = 's(npp_factor)', se.fit = TRUE)
+newxy1_album_peupleraie$fit <- plogis(z1_album_peupleraie$fit)
+newxy1_album_peupleraie$se.fit <- plogis(z1_album_peupleraie$se.fit)
+newxy1_album_peupleraie$low <- plogis(z1_album_peupleraie$fit - 1.96 * z1_album_peupleraie$se.fit)
+newxy1_album_peupleraie$upp <- plogis(z1_album_peupleraie$fit + 1.96 * z1_album_peupleraie$se.fit)
+newxy1_album_peupleraie$subspecies <- "<i>album</i> (poplar grove)"
+
+
+predc13 <- rbind(newxy1_album,
+                 newxy1_album_peupleraie,
+                 newxy1_abiet,
+                 newxy1_austr
+)
+
+predc13$subspecies <- factor(predc13$subspecies,
+                             levels = c("<i>album</i> (other than poplar grove)",
+                                        "<i>album</i> (poplar grove)",
+                                        "<i>abietis</i>",
+                                        "<i>austriacum</i>"
+                                        )
+                             )
+
+library(ggtext)
+ggplot(subset(predc13, c13 > 0))+ # filter newdata to keep only positive values of c13
+  geom_ribbon(aes(x=c13, ymin=low, ymax=upp, fill=subspecies), alpha = .3)+
+  geom_line(aes(x=c13, y=fit, color=subspecies))+
+  scale_color_manual(name = "<i>V.album</i> subspecies", values = c("<i>album</i> (other than poplar grove)" = "#26ad00",
+                                                                    "<i>album</i> (poplar grove)" = "#26ad00",
+                                                                    "<i>abietis</i>" = "#029dd1",
+                                                                    "<i>austriacum</i>" = "#4d00bf"
+  ))+
+  scale_fill_manual(name = "<i>V.album</i> subspecies", values = c("<i>album</i> (other than poplar grove)" = "#26ad00",
+                                                                   "<i>album</i> (poplar grove)" = "#26ad00",
+                                                                   "<i>abietis</i>" = "#029dd1",
+                                                                   "<i>austriacum</i>" = "#4d00bf"
+  ))+
+  labs(x="Tree girth [m]", y="Predicted probability of tree infestation")+
+  facet_wrap(.~subspecies, nrow = 2)+
+  theme_bw()+
+  theme(legend.title = element_markdown(size = 14),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.position = "none",
+        strip.text.x = element_markdown(size = 16)
+  )
+
+ggsave("pred_c13_reduced_poplar.png", width = 8, height = 8, dpi = 300)
+
+
